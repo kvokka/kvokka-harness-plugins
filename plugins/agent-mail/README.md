@@ -23,7 +23,7 @@ Claude: `/plugin install agent-mail --marketplace kvokka/kvokka-harness-plugins`
 | Variable | Default | What |
 |---|---|---|
 | `AGENT_MAIL_PORT` | `8765` | the port of the server |
-| `AGENT_MAIL_HOST` | `127.0.0.1` | the address it listens on; one that is not loopback needs a token |
+| `AGENT_MAIL_HOST` | `127.0.0.1` | the IPv4 address it listens on: `127.*`, `localhost`, or with a token `0.0.0.0` or another address |
 | `AGENT_MAIL_TOKEN` | | the bearer clients from other hosts must send (8 characters or more) |
 | `AGENT_MAIL_TTL` | `3600` | seconds a reservation lasts unless renewed, told to the agents |
 
@@ -36,9 +36,13 @@ add an entry of your own with that URL (the plugin's then finds no server, which
 url = "http://127.0.0.1:<port>/mcp/"
 ```
 
-With a token, the server lets the sessions of this machine in on loopback without it
-(`HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED=true` unless you set it), so the plugin's entry keeps working; a client on
-another host sends `Authorization: Bearer <token>`.
+The token is for access from outside this machine, and loopback goes without it. An `AGENT_MAIL_HOST` that is not
+loopback needs `AGENT_MAIL_TOKEN`, or the server is not started. With a token, a client on another host sends
+`Authorization: Bearer <token>`, while the sessions of this machine still reach the server on loopback without one
+(the server gets `HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED=true` unless you set it otherwise), so the plugin's MCP entry
+keeps working. With `0.0.0.0` the plugin's entry and hooks use `127.0.0.1`; with a specific address of the host
+(say `192.168.1.5`) the hooks use that address, and the static entry of the plugin, on `127.0.0.1`, finds no server:
+add an MCP entry of your own with that address as above.
 
 ## How it works
 
@@ -46,7 +50,9 @@ another host sends `Authorization: Bearer <token>`.
   `~/.local/state/kvokka-harness-plugins/agent-mail/`, it checks `/health/readiness` on the port and, when nothing
   answers, starts a detached supervisor that runs `mcp-agent-mail serve` and restarts it when it exits (five quick
   failures in a row and it gives up until the next session start). The mailbox is in
-  `~/.local/share/kvokka-harness-plugins/agent-mail`, the server's log in `server-<port>.log` of the state directory.
+  `~/.local/share/kvokka-harness-plugins/agent-mail`, the server's log in `server-<port>.log` of the state directory,
+  started afresh by each supervisor. The hook waits at most 30 seconds for another session's start and 30 for the
+  server to answer.
   Unless the user's Agent Mail config chooses a tool filter, the server offers the 12 tools of the protocol below. To
   stop it: `pkill -f 'agent-mail-up supervise'; pkill -f 'mcp-agent-mail serve'`.
 - **A session's identity.** The session registers with `macro_start_session`. Its mail name is kept per T3 thread

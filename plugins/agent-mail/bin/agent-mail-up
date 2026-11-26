@@ -24,6 +24,8 @@ ready() { curl -fsS --max-time 2 "$url/health/readiness" >/dev/null 2>&1; }
 supervise() {
   bin=$(command -v mcp-agent-mail) || die "mcp-agent-mail is not on the PATH"
   umask 077
+  # Each supervisor starts a fresh log.
+  : >"$state/server-$port.log"
   # Agent Mail fails its first readiness check when the mailbox directory is missing.
   mkdir -p "$data/mailbox"
   export STORAGE_ROOT="$data/mailbox" DATABASE_URL="sqlite:///$data/mailbox/storage.sqlite3"
@@ -54,7 +56,7 @@ supervise)
   ;;
 '')
   case $host in
-  127.* | localhost | ::1) ;;
+  127.* | localhost) ;;
   *) [ -n "${AGENT_MAIL_TOKEN:-}" ] || die "AGENT_MAIL_HOST is $host, not loopback, and AGENT_MAIL_TOKEN is empty:" \
     "the server is not started, since anyone who reaches $host:$port could read and send the mail of every agent" ;;
   esac
@@ -64,7 +66,7 @@ supervise)
   mkdir -p "$state"
   # One starter at a time; the supervisor holds a lock of its own for as long as it runs.
   exec 9>"$state/up.lock"
-  flock -w 60 9 || die "another session has been starting the server for a minute"
+  flock -w 30 9 || die "another session has been starting the server for 30 seconds"
   ready && exit 0
   self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
   cd "$state"
