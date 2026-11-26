@@ -1,5 +1,11 @@
 {
   "mcpServers": {
-    "agent-mail": { "type": "http", "url": "http://127.0.0.1:8765/mcp/" }
+    "agent-mail": {
+      "command": "sh",
+      "args": ["-c", "test -z \"$CLAUDE_PLUGIN_ROOT\" || cd \"$CLAUDE_PLUGIN_ROOT\"; exec ./bin/agent-mail mcp"],
+      "cwd": ".",
+      "env_vars": ["AGENT_MAIL_HOST", "AGENT_MAIL_PORT", "AGENT_MAIL_TOKEN", "AGENT_MAIL_TTL", "XDG_CONFIG_HOME",
+        "HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED"]
+    }
   }
 }

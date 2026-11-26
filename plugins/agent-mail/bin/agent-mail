@@ -1,7 +1,8 @@
 #!/bin/sh
-# The hooks of the agent-mail plugin (README.md):
+# The hooks and the MCP server of the agent-mail plugin (README.md):
 #   agent-mail session-start   SessionStart: start the server, register the session, give the agent its mail identity
 #   agent-mail session-end     SessionEnd: release the session's reservations
+#   agent-mail mcp             the MCP server `agent-mail` (.mcp.json): start the server, then relay stdio to it
 #   agent-mail pre-commit      the pre-commit hook `agent-mail-reservations` (.pre-commit-hooks.yaml of the
 #                              repository root): refuse a commit of paths another agent holds
 set -eu
@@ -17,13 +18,18 @@ die() {
 
 need_jq() { command -v jq >/dev/null 2>&1 || die "jq is not on the PATH; install it: mise use -g jq"; }
 
-# `call <tool> <arguments>`: the tool's result on stdout; a failure on stderr. The token, if any, goes on stdin.
+# `post <JSON-RPC message>`: the server's answer, empty for a notification. The token, if any, goes on stdin.
+post() {
+  printf '%s' "${AGENT_MAIL_TOKEN:+Authorization: Bearer $AGENT_MAIL_TOKEN}" |
+    curl -sS --max-time "${max_time:-30}" -H @- -H 'Content-Type: application/json' \
+      -H 'Accept: application/json, text/event-stream' --data-binary "$1" "http://$host:$port/mcp/"
+}
+
+# `call <tool> <arguments>`: the tool's result on stdout; a failure on stderr.
 call() {
   request=$(printf '%s' "$2" | jq -c --arg t "$1" '{jsonrpc: "2.0", id: 1, method: "tools/call",
     params: {name: $t, arguments: .}}') || return 1
-  answer=$(printf '%s' "${AGENT_MAIL_TOKEN:+Authorization: Bearer $AGENT_MAIL_TOKEN}" |
-    curl -sS --max-time "${max_time:-30}" -H @- -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
-      --data-binary "$request" "http://$host:$port/mcp/") || return 1
+  answer=$(post "$request") || return 1
   printf '%s' "$answer" | jq -c --arg t "$1" '
     if .error.code == -32601 then "tool `\($t)` is not available: the tool filter of the server hides it\n" | halt_error
     elif .error then "tool `\($t)`: \(.error.message)\n" | halt_error
@@ -93,6 +99,22 @@ $(cat "$root/prompt.md")"
   jq -nc --arg t "$text" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $t}}'
 }
 
+# The harness starts its MCP servers before the SessionStart hook runs, so the MCP entry starts the server itself,
+# then relays each JSON-RPC message of stdin to it and its answer to stdout.
+mcp() {
+  need_jq
+  "$root/bin/agent-mail-up" || exit 1
+  max_time=120
+  while IFS= read -r line; do
+    if answer=$(post "$line"); then
+      [ -z "$answer" ] || printf '%s\n' "$answer"
+    else
+      printf '%s' "$line" | jq -c 'select(.id != null) |
+        {jsonrpc: "2.0", id, error: {code: -32000, message: "agent-mail: the Agent Mail server did not answer"}}'
+    fi
+  done
+}
+
 session_end() {
   # Codex gives a SessionEnd hook 1 s by default, and both harnesses cap it at a few seconds.
   max_time=1
@@ -137,6 +159,7 @@ pre_commit() {
 case ${1:-} in
 session-start) session_start ;;
 session-end) session_end ;;
+mcp) mcp ;;
 pre-commit) pre_commit ;;
-*) die "usage: agent-mail session-start | session-end | pre-commit" ;;
+*) die "usage: agent-mail session-start | session-end | mcp | pre-commit" ;;
 esac

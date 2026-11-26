@@ -77,6 +77,9 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
   the commit check), no longer per inherited `T3CODE_THREAD_ID`, so nested sessions are agents of their own.
 - The server counts as up once `/health/liveness` answers, so a server whose readiness reports it unavailable (a
   stale database probe, indexes warming up) is not started again.
+- The MCP entry is `bin/agent-mail mcp`, a stdio relay that starts the server before it relays: the harnesses
+  connect MCP servers before the session-start hook runs, so the first session of a cold machine had no tools. It
+  follows `AGENT_MAIL_HOST` and `AGENT_MAIL_PORT`, so another port needs no MCP entry of the user's own.
 - A missing `jq` or `mcp-agent-mail` is reported with the `mise use -g` command that installs it.
 
 ### 0.1.0

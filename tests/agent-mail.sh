@@ -91,6 +91,23 @@ fi
 stop() { pgid=$(pgrep -f "supervisor-$AGENT_MAIL_PORT.lock" || true); [ -z "$pgid" ] || kill -- "-$pgid"; }
 trap stop EXIT
 
+# A cold start: the MCP entry of .mcp.json starts the server, then relays initialize and tools/list to it; Claude runs
+# it with CLAUDE_PLUGIN_ROOT set, Codex in the plugin's directory.
+entry=$(jq -r '.mcpServers["agent-mail"] | select(.command == "sh") | .args[1]' "$plugin/.mcp.json")
+mcp_input=$(printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18",
+"capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' | jq -c .
+  printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+for how in claude codex; do
+  if [ "$how" = claude ]; then
+    out=$(printf '%s\n' "$mcp_input" | CLAUDE_PLUGIN_ROOT=$plugin sh -c "$entry")
+  else
+    out=$(cd "$plugin" && printf '%s\n' "$mcp_input" | env -u CLAUDE_PLUGIN_ROOT sh -c "$entry")
+  fi
+  printf '%s\n' "$out" | jq -se 'length == 2 and .[0].result.serverInfo != null and
+    (.[1].result.tools | map(.name) | index("macro_start_session"))' >/dev/null ||
+    fail "mcp ($how): $(printf '%s' "$out" | head -c 300)"
+done
+
 # Two sessions, one in the repository and one in its worktree, both of one T3 thread: one project, two names.
 ctx_a=$(T3CODE_THREAD_ID=thread-a start sa "$tmp/repo")
 ctx_b=$(T3CODE_THREAD_ID=thread-a start sb "$tmp/wt")

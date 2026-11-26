@@ -55,26 +55,21 @@ writable_roots = ["/home/<you>/.cache/prek"]
 | `AGENT_MAIL_TOKEN` | | the bearer clients from other hosts must send (8 characters or more) |
 | `AGENT_MAIL_TTL` | `3600` | seconds a reservation lasts unless renewed, told to the agents |
 
-The plugin's MCP server entry ([.mcp.json](.mcp.json)) is static: `http://127.0.0.1:8765/mcp/`. For another port,
-add an entry of your own with that URL (the plugin's then finds no server, which is harmless): in Claude,
-`claude mcp add --scope user --transport http agent-mail http://127.0.0.1:<port>/mcp/`; in Codex, in `config.toml`:
-
-```toml
-[mcp_servers.agent-mail]
-url = "http://127.0.0.1:<port>/mcp/"
-```
+The plugin's MCP server `agent-mail` ([.mcp.json](.mcp.json)) is `bin/agent-mail mcp`, a relay over stdio: both
+harnesses connect their MCP servers before the session-start hook runs, so the relay starts the server first, as the
+hook does, then passes each message to it and back. It reads the variables above; Codex hands them to it through the
+entry's `env_vars`.
 
 The token is for access from outside this machine, and loopback goes without it. An `AGENT_MAIL_HOST` that is not
 loopback needs `AGENT_MAIL_TOKEN`, or the server is not started. With a token, a client on another host sends
 `Authorization: Bearer <token>`, while the sessions of this machine still reach the server on loopback without one
 (the server gets `HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED=true` unless you set it otherwise), so the plugin's MCP entry
-keeps working. With `0.0.0.0` the plugin's entry and hooks use `127.0.0.1`; with a specific address of the host
-(say `192.168.1.5`) the hooks use that address, and the static entry of the plugin, on `127.0.0.1`, finds no server:
-add an MCP entry of your own with that address as above.
+keeps working. With `0.0.0.0` the plugin reaches the server on `127.0.0.1`; with a specific address of the host (say
+`192.168.1.5`), on that address.
 
 ## How it works
 
-- **The server.** The `SessionStart` hook runs `bin/agent-mail-up`: under a lock in
+- **The server.** The plugin's MCP entry and its `SessionStart` hook run `bin/agent-mail-up`: under a lock in
   `~/.local/state/kvokka-harness-plugins/agent-mail/`, it checks `/health/liveness` on the port (`/health/readiness`
   may call a working server unavailable while it warms up) and, when nothing answers, starts a detached supervisor
   that runs `mcp-agent-mail serve` and restarts it when it exits (five quick failures in a row and it gives up until
