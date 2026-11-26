@@ -44,13 +44,16 @@ Subagents do not commit: you do, after checking their work.
 ## The expert
 
 Consult the expert for the plan or the design of a critical part, a disputed design choice, or a bug after two
-failed attempts. The expert is no subagent: call T3's `delegate_task` (in T3 Code; choose its model with
-`target.model`) with a task that starts with the text of the `expert` skill (`../expert/SKILL.md` next to this
-skill, without its front matter), then your brief: whether it is a plan, a design or a bug; the goal; the documents
-by section; the files; the file the expert writes its result to; and, for a plan, that each piece must fit 100-150k
-tokens of context with a checkable "done when". When the expert says how to do a thing, follow it; a departure
-needs its reason in your answer. `delegate_task` returns at once: wait for the expert's task to finish
-(`task_status`) and read its result file before you act on the plan.
+failed attempts. The expert is no subagent but a session of its own. Its task starts with the text of the `expert`
+skill (`../expert/SKILL.md` next to this skill, without its front matter), then your brief: whether it is a plan, a
+design or a bug; the goal; the documents by section; the files; the file the expert writes its result to; and, for a
+plan, that each piece must fit 100-150k tokens of context with a checkable "done when". When the expert says how to
+do a thing, follow it; a departure needs its reason in your answer.
+
+- In T3 Code, the T3 way: call T3's `delegate_task` with that task (choose its model with `target.model`). It returns
+  at once: wait for the expert's task to finish (`task_status`) and read its result file before you act on the plan.
+- Without T3's tools: write the brief to a file, then ask the user to run the expert on it and to tell you when its
+  result file is written.
 
 ## Implementation
 

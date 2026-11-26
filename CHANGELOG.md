@@ -77,6 +77,11 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## agents
 
+### 0.1.1
+
+- The coder consults the expert through T3's `delegate_task` under T3 Code, and otherwise asks the user to run
+  the expert on its brief.
+
 ### 0.1.0
 
 - Skills `coder`, `reviewer` and `expert` for Claude and Codex: how each role works, with the output format left to
