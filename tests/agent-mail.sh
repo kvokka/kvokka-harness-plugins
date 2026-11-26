@@ -30,20 +30,24 @@ git config core.hooksPath "$tmp/hooks"
 out=$(AGENT_MAIL_HOST=0.0.0.0 "$plugin/bin/agent-mail-up" 2>&1) && fail "started without a token"
 case $out in *"not loopback"*) ;; *) fail "no reason: $out" ;; esac
 
-# Without mcp-agent-mail: the session hears why, and its commits are refused.
+# Without mcp-agent-mail: the session hears why, it is bound with no name, and its commits are refused; a session
+# that never started (no plugin) commits with a warning.
 bin=$tmp/bin
 mkdir "$bin"
 for tool in jq git curl flock setsid; do ln -s "$(command -v "$tool")" "$bin/$tool"; done
 out=$(PATH="$bin:/usr/bin:/bin" start lone "$tmp/repo")
 case $out in *"Agent Mail is unavailable"*"mise use -g github:Dicklesworthstone/mcp_agent_mail_rust"*) ;;
 *) fail "no reason: $out" ;; esac
+[ "$(jq -r .name "$state/agents/lone.json")" = "" ] || fail "a failed session has a name"
 echo a >a.txt
 git add a.txt
 git commit -q -m 'feat: outside a session'
 echo b >a.txt
 git add a.txt
 if CLAUDE_CODE_SESSION_ID=lone git commit -q -m 'feat: no mail name' 2>/dev/null; then fail "committed without a name"; fi
-git reset -q --hard
+out=$(CLAUDE_CODE_SESSION_ID=stranger git commit -q -m 'feat: no plugin' 2>&1) || fail "no plugin: refused: $out"
+case $out in *"not coordinated"*) ;; *) fail "no plugin: no warning: $out" ;; esac
+git reset -q --hard HEAD^
 
 # Without jq the check names the command that installs it.
 nojq=$tmp/nojq
@@ -69,8 +73,11 @@ if command -v prek >/dev/null; then
   git commit -q -m 'feat: outside a session' >/dev/null 2>&1
   echo a >a.txt
   git add a.txt
-  if out=$(CODEX_THREAD_ID=lone git commit -q -m 'feat: no mail name' 2>&1); then fail "prek: committed without a name"; fi
+  PATH="$bin:/usr/bin:/bin" start prek-lone "$tmp/prek-work" >/dev/null
+  if out=$(CODEX_THREAD_ID=prek-lone git commit -q -m 'feat: no mail name' 2>&1); then fail "prek: committed without a name"; fi
   case $out in *"no Agent Mail name"*) ;; *) fail "prek: no reason: $out" ;; esac
+  out=$(CODEX_THREAD_ID=stranger git commit -q -m 'feat: no plugin' 2>&1) || fail "prek: no plugin: refused: $out"
+  case $out in *"not coordinated"*) ;; *) fail "prek: no plugin: no warning: $out" ;; esac
   cd "$tmp/repo"
 else
   echo "prek is not on the PATH: the check through prek is skipped"

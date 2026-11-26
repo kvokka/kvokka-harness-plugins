@@ -67,11 +67,16 @@ session_start() {
   args=$(printf '%s' "$input" | jq -c --arg key "$key" --arg id "$id" --arg name "$name" --arg program "$program" '
     {human_key: $key, program: $program, model: ((.model | strings) // "unknown"), task_description: $id, inbox_limit: 5}
     + if $name != "" then {agent_name: $name} else {} end')
-  # A step that fails prints nothing on stdout, one that works nothing on stderr.
+  # A step that fails prints nothing on stdout, one that works nothing on stderr. The binding is written either way:
+  # the commit check refuses the commits of a session that has one with no name, since its registration failed.
   if up=$("$root/bin/agent-mail-up" 2>&1) && started=$(call macro_start_session "$args" 2>&1); then
     name=$(printf '%s' "$started" | jq -r .agent.name)
-    jq -nc --arg name "$name" --arg key "$key" --arg thread "$thread" '{name: $name, key: $key, thread: $thread}' |
-      put "$file"
+  else
+    name=
+  fi
+  jq -nc --arg name "$name" --arg key "$key" --arg thread "$thread" '{name: $name, key: $key, thread: $thread}' |
+    put "$file"
+  if [ -n "$name" ]; then
     text=$(printf '%s' "$started" | jq -r --arg key "$key" --arg thread "$thread" --arg ttl "$ttl" '
       "Agent Mail (MCP server `agent-mail`): you are `\(.agent.name)` in the project `\($key)`; use `\($key)` as "
       + "`project_key`, `\(.agent.name)` as `agent_name` and `sender_name`, `\($thread)` as `thread_id`, and "
@@ -107,10 +112,14 @@ pre_commit() {
   paths=$(git diff --cached --name-only --no-renames -z | jq -Rsc 'split("\u0000") | map(select(length > 0))')
   [ "$paths" != "[]" ] || exit 0
   file=$(binding "$id")
-  [ -f "$file" ] ||
-    die "the commit is refused: this session has no Agent Mail name to check its reservations; see its session start"
+  if [ ! -f "$file" ]; then
+    echo "agent-mail: this session is not coordinated (no agent-mail plugin); reservations not checked" >&2
+    exit 0
+  fi
   # A repository the session did not register in is not coordinated by it.
   [ "$(jq -r .key "$file")" = "$(key)" ] || exit 0
+  [ -n "$(jq -r .name "$file")" ] ||
+    die "the commit is refused: this session has no Agent Mail name to check its reservations; see its session start"
   args=$(jq -c --argjson paths "$paths" '{project_key: .key, agent_name: .name, paths: $paths}' "$file")
   result=$(call check_file_reservation_conflicts "$args") ||
     die "the commit is refused: its reservations could not be checked"

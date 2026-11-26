@@ -9,7 +9,7 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ### v0.2.0
 
-- The hook `agent-mail-reservations` (agent-mail 0.2.0).
+- The hook `agent-mail-reservations` (agent-mail 0.2.0); its output shows on a passing commit too.
 
 ## dcg
 
@@ -67,6 +67,8 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 - The commit check is the prek (pre-commit) hook `agent-mail-reservations` of this repository's
   `.pre-commit-hooks.yaml`, installed per repository, in place of a Git include in the session's environment.
+  It lets the commits of an agent session without the plugin through with a warning, and refuses those of a
+  session whose registration failed: the session start now keeps such a session with no name.
 - A missing `jq` or `mcp-agent-mail` is reported with the `mise use -g` command that installs it.
 
 ### 0.1.0

@@ -19,9 +19,13 @@ repos:
       - id: agent-mail-reservations
 ```
 
-and install its Git hook: `prek install`. `rev` is a tag of this repository: `v0.2.0` or a newer one from the
-[changelog](../../CHANGELOG.md#repository-tags). Install the hook only where every agent session has the plugin: the
-commits of an agent session without a mail name are refused.
+and install its Git hook: `prek install`. `rev` is a tag of this repository, from the
+[changelog](../../CHANGELOG.md#repository-tags): the one of the agent-mail release that is installed, since the hook
+and the plugin share the session files under `~/.local/state/kvokka-harness-plugins/agent-mail/`.
+
+The hook refuses the commits of a session whose registration failed, and lets through, with one warning line, those
+of an agent session that has no agent-mail plugin. A Codex session whose plugin hooks are not trusted is such a
+session: it commits with only the warning.
 
 ## What the host needs
 
@@ -74,13 +78,15 @@ add an MCP entry of your own with that address as above.
   project key is the canonical common Git directory (`git rev-parse --git-common-dir`), shared by all worktrees of a
   repository, or the directory outside Git; each project has one thread, named after the repository. The session's
   context gets its mail name, project key, thread and inbox, and the protocol of [prompt.md](prompt.md). When the
-  server is not up, the context says why, and the commit check refuses the session's commits.
+  server is not up, the context says why, the session is kept with no name, and the commit check refuses its
+  commits.
 - **The commit check.** The hook `agent-mail-reservations` of [.pre-commit-hooks.yaml](../../.pre-commit-hooks.yaml)
   runs `bin/agent-mail pre-commit`. A commit by an agent session (`T3CODE_THREAD_ID`, `CLAUDE_CODE_SESSION_ID` or
   `CODEX_THREAD_ID` set) in the repository it registered in sends its staged paths, both sides of a rename, to
   `check_file_reservation_conflicts`; the session's mail name is read from
   `~/.local/state/kvokka-harness-plugins/agent-mail/`. A path another agent holds exclusively refuses the
-  commit, naming the path and its holder; a check that cannot be made refuses it too. Other commits, a person's
-  included, are not checked.
+  commit, naming the path and its holder; a check that cannot be made refuses it too, and so does a session kept
+  with no name. An agent session the plugin never saw passes with a warning; other commits, a person's included,
+  are not checked.
 - **The end of a session.** `SessionEnd` releases the session's reservations; the TTL ends those of a session that
   did not end cleanly.
