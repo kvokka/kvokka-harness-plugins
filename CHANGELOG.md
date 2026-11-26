@@ -14,3 +14,10 @@ Each plugin has its own version; its section lists its releases, newest first.
 ### 0.1.0
 
 - Tell each Claude or Codex session and subagent to search with `rg` and `ast-grep` and to read JSON with `toon`.
+
+## conventional-commits
+
+### 0.1.0
+
+- Git refuses a commit of a Claude or Codex session whose subject is not a Conventional Commit; the session start
+  gives the agent an example subject.

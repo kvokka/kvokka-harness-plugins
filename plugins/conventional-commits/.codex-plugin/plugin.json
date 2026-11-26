@@ -1,0 +1,12 @@
+{
+  "name": "conventional-commits",
+  "version": "0.1.0",
+  "description": "Git refuses a commit of the session whose subject is not a Conventional Commit.",
+  "author": {
+    "name": "kvokka"
+  },
+  "license": "MIT",
+  "interface": {
+    "displayName": "Conventional Commits"
+  }
+}

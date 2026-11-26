@@ -14,6 +14,11 @@
       "name": "shell-tools",
       "source": "./plugins/shell-tools",
       "description": "Tells each agent and subagent to search code with rg and ast-grep and to read JSON with toon."
+    },
+    {
+      "name": "conventional-commits",
+      "source": "./plugins/conventional-commits",
+      "description": "Git refuses a commit of the session whose subject is not a Conventional Commit."
     }
   ]
 }
