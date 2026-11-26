@@ -1,12 +1,6 @@
 #!/bin/sh
-# SessionStart hook of Claude and Codex. The session's Git includes a gitconfig at a stable path (README.md); this
-# hook points it at the commit-msg check of the plugin as installed now, then gives the agent the hint of prompt.md.
+# SessionStart hook of Claude and Codex: the hint of prompt.md joins the agent's context.
 set -eu
-root=$(cd "$(dirname "$0")/.." && pwd)
-dir=$HOME/.local/state/kvokka-harness-plugins/conventional-commits
-mkdir -p "$dir"
-tmp=$(mktemp "$dir/gitconfig.XXXXXX")
-printf '[hook "kvokka-conventional-commits"]\n\tevent = commit-msg\n\tcommand = %s\n' "'$root/bin/commit-msg'" >"$tmp"
-mv -f "$tmp" "$dir/gitconfig"
+command -v jq >/dev/null 2>&1 || { echo "conventional-commits: jq is not on the PATH; install it: mise use -g jq" >&2; exit 1; }
 event=$(jq -r .hook_event_name)
-jq -Rsc --arg e "$event" '{hookSpecificOutput: {hookEventName: $e, additionalContext: .}}' "$root/prompt.md"
+jq -Rsc --arg e "$event" '{hookSpecificOutput: {hookEventName: $e, additionalContext: .}}' "$(dirname "$0")/../prompt.md"

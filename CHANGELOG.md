@@ -26,6 +26,14 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## conventional-commits
 
+### 0.2.0
+
+- The plugin is the session-start hint only; conventional-pre-commit under prek checks the commits, configured per
+  repository. The Git commit-msg check, its gitconfig and the `GIT_CONFIG_*` setup are gone.
+- The hint names the types conventional-pre-commit accepts and asks for `revert: <subject>` in place of Git's
+  `Revert "..."`, which that check refuses.
+- A missing `jq` is reported with `mise use -g jq`.
+
 ### 0.1.0
 
 - Git refuses a commit of a Claude or Codex session whose subject is not a Conventional Commit, merge and revert

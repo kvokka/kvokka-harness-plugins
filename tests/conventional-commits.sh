@@ -1,39 +1,10 @@
 #!/bin/sh
-# conventional-commits: the session start writes the stable gitconfig, and Git then checks every commit's subject,
-# beside the repository's own commit-msg hook.
+# conventional-commits: the session start gives the hint of prompt.md; without jq it names the command that installs it.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)/plugins/conventional-commits
-tmp=$(mktemp -d)
-export HOME="$tmp/home" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
-export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.org GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.org
-mkdir -p "$HOME"
 out=$(echo '{"hook_event_name":"SessionStart","session_id":"s"}' | "$root/hooks/session-start")
-printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("fix\\(parser\\)")' >/dev/null ||
-  { echo "no hint: $out"; exit 1; }
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=include.path
-export GIT_CONFIG_VALUE_0="$HOME/.local/state/kvokka-harness-plugins/conventional-commits/gitconfig"
-git init -q "$tmp/work"
-cd "$tmp/work"
-printf '#!/bin/sh\ntouch .git/local-hook-ran\n' >.git/hooks/commit-msg
-chmod +x .git/hooks/commit-msg
-commit() { git commit -q --allow-empty -m "$1"; }
-reject() { if commit "$1" 2>/dev/null; then echo "accepted: $1"; exit 1; fi; }
-commit 'docs: describe the parser'
-test -f .git/local-hook-ran
-commit 'feat(api)!: change the response'
-reject 'update docs'
-reject 'Fix: capital type'
-reject 'fix:  two spaces'
-reject 'fix(a b): space in the scope'
-[ "$(git rev-list --count HEAD)" = 2 ]
-# The subjects Git writes for a merge and a revert pass.
-git checkout -q -b side
-echo side >side.txt
-git add side.txt
-commit 'feat: on the side'
-git checkout -q -
-git merge -q --no-ff --no-edit side
-git log -1 --format=%s | grep -q '^Merge branch'
-git revert --no-edit HEAD^2 >/dev/null
-git log -1 --format=%s | grep -q '^Revert "'
-reject 'Merged things'
+printf '%s' "$out" | jq -e '.hookSpecificOutput | .hookEventName == "SessionStart" and
+  (.additionalContext | test("fix\\(parser\\)") and test("revert: "))' >/dev/null || { echo "no hint: $out"; exit 1; }
+tmp=$(mktemp -d)
+if out=$(echo '{}' | PATH="$tmp" /bin/sh "$root/hooks/session-start" 2>&1); then echo "ran without jq"; exit 1; fi
+case $out in *"mise use -g jq"*) ;; *) echo "no reason: $out"; exit 1 ;; esac

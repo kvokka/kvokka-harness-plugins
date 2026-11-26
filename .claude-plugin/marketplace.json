@@ -18,7 +18,7 @@
     {
       "name": "conventional-commits",
       "source": "./plugins/conventional-commits",
-      "description": "Git refuses a commit of the session whose subject is not a Conventional Commit."
+      "description": "Tells each session to write Conventional Commit subjects, as conventional-pre-commit under prek checks them."
     },
     {
       "name": "context-budget",

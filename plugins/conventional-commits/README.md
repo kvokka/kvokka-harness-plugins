@@ -1,43 +1,36 @@
 # conventional-commits
 
-Git refuses a commit of a Claude or Codex session whose subject is not a Conventional Commit: a lowercase type, an
-optional scope in parentheses, an optional `!` and a description, e.g. `feat(api)!: change the response format`.
-Bodies and trailers are free, and the subjects Git writes for a merge (`Merge ...`) or a revert (`Revert "..."`) pass. The session start gives the agent one example subject ([prompt.md](prompt.md)). Every
-commit made in the session is checked, in any repository.
+Each Claude or Codex session starts with a hint ([prompt.md](prompt.md)): write commit subjects as Conventional
+Commits, `type(scope)!: description`, with the types and the revert form that
+[conventional-pre-commit](https://github.com/compilerla/conventional-pre-commit) accepts. The check itself is that
+hook, which [prek](https://github.com/j178/prek) runs at each commit of the repository, by an agent or by hand.
 
 ## Install
 
-Claude: `/plugin install conventional-commits --marketplace kvokka/kvokka-harness-plugins`. Codex and T3: see the
-[root README](../../README.md).
+Install and enable the plugin as the [root README](../../README.md#install) says. Then, in each repository to check,
+add the hook to `.pre-commit-config.yaml`:
 
-## How it works
+```yaml
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.5.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+```
 
-Git runs the check as a named `commit-msg` hook from its config, beside the repository's own hooks. The session's Git
-includes `~/.local/state/kvokka-harness-plugins/conventional-commits/gitconfig`, and the plugin's `SessionStart`
-hook rewrites that file each time to name the check of the plugin as installed now (the installed plugin lives in a
-versioned path). Git skips an include file that does not exist, so commits are checked once a session has started
-with the plugin.
+and install its Git hook: `prek install --hook-type commit-msg`. prek refuses while `core.hooksPath` is set in the
+user's or the system's Git config, and says how to go on.
+
+## What the check accepts
+
+With no `args`, conventional-pre-commit takes a subject with one of the types `build`, `chore`, `ci`, `docs`,
+`feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test` (in any case), an optional scope, an optional `!`, a
+colon and a description; a body only after a blank line. Subjects that start with `Merge` pass, and so do `fixup!`,
+`squash!` and `amend!` ones. The subject Git writes for a revert, `Revert "..."`, is refused: the hint asks for
+`revert: <the reverted subject>`. `args` in the config change the types and the scopes (see its README).
 
 ## What the host needs
 
-- Git 2.54 or newer (hooks defined in its configuration, `hook.<name>.command`), and `jq`.
-- The include in the environment of the session (a plugin cannot set it). Use the absolute path of your home: T3 does
-  not expand `~` or `$HOME` in an instance's environment.
-
-```sh
-GIT_CONFIG_COUNT=1
-GIT_CONFIG_KEY_0=include.path
-GIT_CONFIG_VALUE_0=/home/<you>/.local/state/kvokka-harness-plugins/conventional-commits/gitconfig
-```
-
-With the agent-mail plugin as well, include both files:
-
-```sh
-GIT_CONFIG_COUNT=2
-GIT_CONFIG_KEY_0=include.path
-GIT_CONFIG_VALUE_0=/home/<you>/.local/state/kvokka-harness-plugins/conventional-commits/gitconfig
-GIT_CONFIG_KEY_1=include.path
-GIT_CONFIG_VALUE_1=/home/<you>/.local/state/kvokka-harness-plugins/agent-mail/gitconfig
-```
-
-The T3 instance snippet is in the [root README](../../README.md#t3-provider-instances).
+- `jq` for the hook: `mise use -g jq`.
+- `prek` for the check: `mise use -g prek`.
