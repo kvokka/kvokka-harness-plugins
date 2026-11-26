@@ -47,5 +47,8 @@ tests/run                                  the test runner; tests/<name>.sh and 
 - Run `tests/run` and `shellcheck` over every script before handing work over.
 - A change to a plugin bumps its SemVer in both manifests (they always agree) and adds an entry to its section of
   `CHANGELOG.md`. Any change to a plugin's files makes Codex see its hooks as modified, so they need trust again.
+- A change to `.pre-commit-hooks.yaml` or to the agent-mail pre-commit code (`bin/agent-mail pre-commit` and what
+  it calls) needs a new repository tag, which the owner makes: add its entry under "Repository tags" in
+  `CHANGELOG.md`.
 - Docs describe how things work now: no history. No absolute paths of anyone's machine (use `~`).
 - Commits are small, atomic, with Conventional Commit subjects.
