@@ -110,7 +110,7 @@ def main():
         print("codex-trusted: hooks not trusted: %s" % e, file=sys.stderr)
     finally:
         signal.alarm(0)
-    os.execv(codex, [codex] + sys.argv[1:])
+    os.execvp(codex, [codex] + sys.argv[1:])
 
 
 if __name__ == "__main__":
