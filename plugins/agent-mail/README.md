@@ -75,9 +75,10 @@ add an MCP entry of your own with that address as above.
 ## How it works
 
 - **The server.** The `SessionStart` hook runs `bin/agent-mail-up`: under a lock in
-  `~/.local/state/kvokka-harness-plugins/agent-mail/`, it checks `/health/readiness` on the port and, when nothing
-  answers, starts a detached supervisor that runs `mcp-agent-mail serve` and restarts it when it exits (five quick
-  failures in a row and it gives up until the next session start). The mailbox is in
+  `~/.local/state/kvokka-harness-plugins/agent-mail/`, it checks `/health/liveness` on the port (`/health/readiness`
+  may call a working server unavailable while it warms up) and, when nothing answers, starts a detached supervisor
+  that runs `mcp-agent-mail serve` and restarts it when it exits (five quick failures in a row and it gives up until
+  the next session start). The mailbox is in
   `~/.local/share/kvokka-harness-plugins/agent-mail`, the server's log in `server-<port>.log` of the state directory,
   started afresh by each supervisor. The hook waits at most 30 seconds for another session's start and 30 for the
   server to answer.
