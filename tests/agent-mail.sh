@@ -44,7 +44,9 @@ if ! command -v mcp-agent-mail >/dev/null; then
   echo "mcp-agent-mail is not on the PATH: the server part is skipped"
   exit 0
 fi
-trap 'pgid=$(pgrep -f "supervisor-$AGENT_MAIL_PORT.lock" || true); [ -z "$pgid" ] || kill -- "-$pgid"' EXIT
+# The supervisor leads its own process group, the server's too.
+stop() { pgid=$(pgrep -f "supervisor-$AGENT_MAIL_PORT.lock" || true); [ -z "$pgid" ] || kill -- "-$pgid"; }
+trap stop EXIT
 
 # Two sessions, one in the repository and one in its worktree: one project, two names.
 ctx_a=$(T3CODE_THREAD_ID=thread-a start sa "$tmp/repo")
