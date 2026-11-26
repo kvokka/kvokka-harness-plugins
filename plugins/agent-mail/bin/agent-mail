@@ -18,10 +18,11 @@ die() {
 
 need_jq() { command -v jq >/dev/null 2>&1 || die "jq is not on the PATH; install it: mise use -g jq"; }
 
-# `post <JSON-RPC message>`: the server's answer, empty for a notification. The token, if any, goes on stdin.
+# `post <JSON-RPC message>`: the server's answer, empty for a notification; an HTTP error fails. The token, if any,
+# goes on stdin.
 post() {
   printf '%s' "${AGENT_MAIL_TOKEN:+Authorization: Bearer $AGENT_MAIL_TOKEN}" |
-    curl -sS --max-time "${max_time:-30}" -H @- -H 'Content-Type: application/json' \
+    curl -sS --fail-with-body --max-time "${max_time:-30}" -H @- -H 'Content-Type: application/json' \
       -H 'Accept: application/json, text/event-stream' --data-binary "$1" "http://$host:$port/mcp/"
 }
 
@@ -109,8 +110,8 @@ mcp() {
     if answer=$(post "$line"); then
       [ -z "$answer" ] || printf '%s\n' "$answer"
     else
-      printf '%s' "$line" | jq -c 'select(.id != null) |
-        {jsonrpc: "2.0", id, error: {code: -32000, message: "agent-mail: the Agent Mail server did not answer"}}'
+      printf '%s' "$line" | jq -c 'select(.id != null) | {jsonrpc: "2.0", id,
+        error: {code: -32000, message: "agent-mail: the Agent Mail server refused or did not answer"}}' || :
     fi
   done
 }

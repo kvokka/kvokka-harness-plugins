@@ -108,6 +108,22 @@ for how in claude codex; do
     fail "mcp ($how): $(printf '%s' "$out" | head -c 300)"
 done
 
+# An HTTP error of the server (401, empty body) and a line that is not JSON: the relay answers each request with an
+# error of its id and goes on.
+fake=$((AGENT_MAIL_PORT + 1))
+python3 -c 'import http.server, sys
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self): self.send_response(200); self.end_headers()
+    def do_POST(self): self.send_response(401); self.send_header("Content-Length", "0"); self.end_headers()
+    def log_message(self, *a): pass
+http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()' "$fake" &
+fake_pid=$!
+until curl -fs -o /dev/null "http://127.0.0.1:$fake/health/liveness"; do sleep 0.1; done
+out=$(printf '%s\n' "$mcp_input" 'not json' | AGENT_MAIL_PORT=$fake "$plugin/bin/agent-mail" mcp 2>/dev/null)
+kill "$fake_pid"
+[ "$(printf '%s\n' "$out" | jq -sc 'map(select(.error.code == -32000) | .id)')" = '[0,1]' ] ||
+  fail "relay after a 401: $out"
+
 # Two sessions, one in the repository and one in its worktree, both of one T3 thread: one project, two names.
 ctx_a=$(T3CODE_THREAD_ID=thread-a start sa "$tmp/repo")
 ctx_b=$(T3CODE_THREAD_ID=thread-a start sb "$tmp/wt")
