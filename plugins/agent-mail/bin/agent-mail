@@ -64,7 +64,7 @@ session_start() {
   program=codex
   [ -z "${CLAUDECODE:-}" ] || program=claude-code
   args=$(printf '%s' "$input" | jq -c --arg key "$key" --arg id "$id" --arg name "$name" --arg program "$program" '
-    {human_key: $key, program: $program, model: (.model // "unknown"), task_description: $id, inbox_limit: 5}
+    {human_key: $key, program: $program, model: ((.model | strings) // "unknown"), task_description: $id, inbox_limit: 5}
     + if $name != "" then {agent_name: $name} else {} end')
   # A step that fails prints nothing on stdout, one that works nothing on stderr.
   if up=$("$root/bin/agent-mail-up" 2>&1) && started=$(call macro_start_session "$args" 2>&1); then
