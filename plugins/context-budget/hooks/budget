@@ -120,7 +120,7 @@ k() { echo "$(($1 / 1000))k"; }
 case $event in
 SessionStart)
     # The files of sessions that ended long ago go.
-    find "$data" -type f -mtime +7 -delete
+    find "$data" -type f -mtime +7 -delete 2>/dev/null || : # a parallel start may delete the same file
     if [ ! -f "$data/$session.base" ] && base=$(git rev-parse -q --verify HEAD 2>/dev/null); then
         echo "$base" >"$data/$session.base"
     fi
