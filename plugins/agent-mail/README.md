@@ -19,11 +19,18 @@ repos:
       - id: agent-mail-reservations
 ```
 
-and install its Git hook: `prek install`. With `core.hooksPath` set in the user's or the system's Git config, Git
-skips the repository's hooks and `prek install` refuses; set it for the repository first: `git config --local
-core.hooksPath .git/hooks`. `rev` is a tag of this repository, from the
+and install its Git hook: `prek install`. `rev` is a tag of this repository, from the
 [changelog](../../CHANGELOG.md#repository-tags): the one of the agent-mail release that is installed, since the hook
 and the plugin share the session files under `~/.local/state/kvokka-harness-plugins/agent-mail/`.
+
+With `core.hooksPath` set in the user's or the system's Git config, Git skips the repository's hooks and `prek
+install` refuses; set it for the repository first:
+
+```sh
+git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+```
+
+The path is absolute so that linked worktrees, where `.git` is a file, find the hooks too.
 
 The hook refuses the commits of a session whose registration failed, and lets through, with one warning line, those
 of an agent session that has no agent-mail plugin. A Codex session whose plugin hooks are not trusted is such a

@@ -21,7 +21,12 @@ repos:
 
 and install its Git hook: `prek install --hook-type commit-msg`. With `core.hooksPath` set in the user's or the
 system's Git config, Git skips the repository's hooks and `prek install` refuses; set it for the repository first:
-`git config --local core.hooksPath .git/hooks`.
+
+```sh
+git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+```
+
+The path is absolute so that linked worktrees, where `.git` is a file, find the hooks too.
 
 A Codex session with `sandbox_mode = "workspace-write"` runs `git commit`, and so prek, inside its sandbox. prek
 writes its log and a lock in its home (`~/.cache/prek`, or `PREK_HOME`) at every run, so a home the sandbox cannot
