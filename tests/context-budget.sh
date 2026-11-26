@@ -39,7 +39,7 @@ claude_usage 1300 c
 out=$(hook PreToolUse c '{"tool_name":"Task"}')
 [ "$(printf '%s' "$out" | jq -r .hookSpecificOutput.permissionDecision)" = deny ] || fail "a subagent allowed: $out"
 [ -z "$(hook PreToolUse c '{"tool_name":"Bash"}')" ] || fail "a shell command denied past soft"
-[ "$(printf '%s' "$(hook PreCompact c)" | jq -r .decision)" = block ] || fail "compaction allowed"
+[ -z "$(hook PreCompact c)" ] || fail "an answer to compaction below hard"
 
 # A Claude subagent: its own transcript, its own note.
 mkdir -p "$tmp/c/subagents"
@@ -56,6 +56,9 @@ grep -q 'working' "$tmp/data/c.md" || fail "no last text in the dump"
 claude_usage 10 c
 [ "$(printf '%s' "$(hook PreToolUse c '{"tool_name":"Bash"}')" | jq -r .hookSpecificOutput.permissionDecision)" = deny ] ||
   fail "a call after the stop"
+out=$(hook PreToolUse c '{"tool_name":"Bash","agent_id":"a1"}')
+printf '%s' "$out" | jq -e --arg d "$tmp/data/c.md" '.hookSpecificOutput.permissionDecisionReason | contains($d)' \
+  >/dev/null || fail "a subagent of a stopped session: $out"
 
 # Codex: no continue on PreToolUse, and an attempt to compact stops the session.
 turn='{"turn_id":"t1","tool_name":"spawn_agent"}'
@@ -63,6 +66,9 @@ codex_usage 1100 x
 out=$(hook PreToolUse x "$turn")
 printf '%s' "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny" and
   (.hookSpecificOutput.permissionDecisionReason | length > 0) and (has("continue") | not)' >/dev/null || fail "codex: $out"
+[ -z "$(hook PreCompact x '{"turn_id":"t1"}')" ] || fail "codex: an answer to compaction below hard"
+[ ! -f "$tmp/data/x.md" ] || fail "codex: a dump below hard"
+codex_usage 2100 x
 out=$(hook PreCompact x '{"turn_id":"t1"}')
 printf '%s' "$out" | jq -e '.continue == false and (has("decision") | not)' >/dev/null || fail "codex compacts: $out"
 [ -f "$tmp/data/x.md" ] || fail "codex: no dump"

@@ -27,7 +27,8 @@ Each plugin has its own version; its section lists its releases, newest first.
 ### 0.1.0
 
 - Bound the context of a Claude or Codex session: a wrap-up note past `CONTEXT_BUDGET_SOFT`, no subagents past it,
-  and a stop with a dump of the work's state past `CONTEXT_BUDGET_HARD`; compaction is blocked or stops the session.
+  and a stop with a dump of the work's state past `CONTEXT_BUDGET_HARD`, also when the harness tries to compact
+  past it.
 
 ## agent-mail
 

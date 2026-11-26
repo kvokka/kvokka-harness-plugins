@@ -24,14 +24,7 @@ transcript() {
         printf '%s' "$main"
         return
     fi
-    for dir in "$(dirname "$main")/$session/subagents" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects"; do
-        [ -d "$dir" ] || continue
-        found=$(find "$dir" -path "*/$session/subagents/*" -name "agent-$agent.jsonl" 2>/dev/null | head -n 1)
-        [ -z "$found" ] || {
-            printf '%s' "$found"
-            return
-        }
-    done
+    printf '%s' "$(dirname "$main")/$session/subagents/agent-$agent.jsonl"
 }
 
 # The tokens of the context: those of the last answer of the model, its input with the cache and its output.
@@ -94,9 +87,10 @@ dump() {
         jq -r '"", .'
 }
 
+# stopped <who> <files>: the reason of a stop, naming the dump of the agent that went past its budget.
+stopped() { echo "the context budget of this $1 is spent; it is stopped, and the state of its work is in $2.md"; }
 who=session
 [ -z "$agent" ] || who=subagent
-stopped="the context budget of this $who is spent; it is stopped, and the state of its work is in $me.md"
 # Claude ends the turn on `continue: false`; Codex rejects that answer on `PreToolUse` and would run the call.
 deny() {
     jq -nc --arg r "$1" --argjson end "${2:-false}" '(if $end then {continue: false, stopReason: $r} else {} end) +
@@ -112,8 +106,8 @@ cut_off() {
         dump "$1" >"$me.md"
         : >"$me.stop"
     fi
-    if [ "$event" = PreToolUse ]; then deny "$stopped" "$ends"; fi
-    jq -nc --arg r "$stopped" '{continue: false, stopReason: $r}'
+    if [ "$event" = PreToolUse ]; then deny "$(stopped "$who" "$me")" "$ends"; fi
+    jq -nc --arg r "$(stopped "$who" "$me")" '{continue: false, stopReason: $r}'
     exit 0
 }
 
@@ -134,13 +128,13 @@ SubagentStart)
     context "Your context budget is $(k "$soft") tokens. Past it you get a note: then wrap up and return your summary."
     ;;
 PreCompact)
-    # Codex compacts at `hard` (README.md) and takes no block: the answer that keeps the context ends the turn.
+    # Past `hard` the session stops instead of compacting; below it the harness's settings decide (README.md).
     t=$(transcript)
-    if [ -n "$codex" ] || [ "$(tokens "$t")" -ge "$hard" ]; then cut_off "$t"; fi
-    jq -nc '{decision: "block", reason: "compaction is off: the context-budget plugin bounds the context instead"}'
+    [ "$(tokens "$t")" -lt "$hard" ] || cut_off "$t"
     ;;
 PreToolUse)
-    { [ -f "$data/$session.stop" ] || [ -f "$me.stop" ]; } && deny "$stopped" "$ends"
+    [ ! -f "$data/$session.stop" ] || deny "$(stopped session "$data/$session")" "$ends"
+    [ ! -f "$me.stop" ] || deny "$(stopped "$who" "$me")" "$ends"
     t=$(transcript)
     n=$(tokens "$t")
     [ "$n" -lt "$hard" ] || cut_off "$t"

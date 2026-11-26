@@ -118,7 +118,7 @@ wrapper:
   the instance has, since agent-mail refuses the commits of a session without a mail name.
 - `CONTEXT_BUDGET_*` and the compaction settings: see [context-budget](plugins/context-budget/README.md#settings).
   Claude never compacts below about 967k tokens with `autoCompactWindow` at 1000000; Codex compacts at
-  `model_auto_compact_token_limit`, which is where the plugin stops the session, so set it to the hard limit.
+  `model_auto_compact_token_limit`: set it to the hard limit, so that its attempt to compact stops the session.
 - `AGENT_MAIL_*`: see [agent-mail](plugins/agent-mail/README.md#settings).
 
 ## Development

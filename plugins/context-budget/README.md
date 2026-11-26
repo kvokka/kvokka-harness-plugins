@@ -3,8 +3,8 @@
 Bounds the context of a Claude or Codex session. Past a soft limit the agent is told to wrap up: finish or roll back
 the step at hand, commit, start nothing new, call no subagents, and give its summary (what is done, what did not
 work, what is started and not finished) as its final answer; a subagent returns that summary to its caller. Past a
-hard limit the session is stopped and the state of its work is written to a file the stop names. The context is
-never compacted.
+hard limit the session is stopped and the state of its work is written to a file the stop names. With the harness
+settings below, the context is never compacted.
 
 ## Install
 
@@ -19,12 +19,15 @@ Claude: `/plugin install context-budget --marketplace kvokka/kvokka-harness-plug
 | `CONTEXT_BUDGET_HARD` | `420000` | tokens of context past which the session is stopped |
 | `CONTEXT_BUDGET_STEP` | `30000` | tokens the context grows past the soft limit between two notes |
 
-Compaction is off by harness settings, which a plugin cannot set; give them in the session's launch arguments:
+When the harness compacts is its own setting, which a plugin cannot set; give it in the session's launch arguments,
+at or past the hard limit, so that the session stops instead of compacting:
 
 - Claude: `--settings '{"autoCompactWindow":1000000}'`. Claude then compacts at about 967k tokens, past the hard
-  limit, and the plugin blocks a compaction that comes earlier (`/compact` included).
-- Codex: `-c model_auto_compact_token_limit=420000`, the hard limit. Codex's `PreCompact` takes no block, so its
-  attempt to compact is where the plugin stops the session.
+  limit.
+- Codex: `-c model_auto_compact_token_limit=420000`, the hard limit.
+
+An attempt to compact past the hard limit stops the session; one below it (Claude's `/compact`, or a compaction
+setting below the hard limit) goes ahead, and the plugin says nothing.
 
 ## How it works
 
@@ -41,7 +44,7 @@ the rollout.
   `<session_id>.agent-<id>.md`): `git status --short`, the commits since the session started, `git diff --stat`, the
   last tool calls and texts. The session stops, and every later tool call is denied. A subagent past its own hard
   limit stops alone.
-- `PreCompact`: on Claude blocked below hard and a stop past it; on Codex a stop.
+- `PreCompact`, past hard: the same stop. Below hard the plugin answers nothing.
 
 `<data>` is the plugin's data directory, `CLAUDE_PLUGIN_DATA` (both harnesses set it). The agent hears of the soft
 limit only: the stop is a safety net a session that wraps up in time never meets.
