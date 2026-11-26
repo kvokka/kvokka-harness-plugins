@@ -24,6 +24,11 @@
       "name": "context-budget",
       "source": "./plugins/context-budget",
       "description": "Bounds the context of a session: past a soft limit the agent wraps up, past a hard limit the session stops."
+    },
+    {
+      "name": "agent-mail",
+      "source": "./plugins/agent-mail",
+      "description": "Agents in one repository coordinate through Agent Mail: a shared thread, path reservations, and refused commits of paths another agent holds."
     }
   ]
 }

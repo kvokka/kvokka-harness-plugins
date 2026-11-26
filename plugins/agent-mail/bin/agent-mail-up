@@ -1,0 +1,82 @@
+#!/bin/sh
+# Makes sure the one Agent Mail server of this machine answers on AGENT_MAIL_HOST:AGENT_MAIL_PORT: if it does not, it
+# starts a detached supervisor that runs `mcp-agent-mail serve` and restarts it when it exits, then waits for it.
+#   agent-mail-up              start the server unless it answers; prints nothing, fails with a reason
+#   agent-mail-up supervise    the supervisor loop (detached by the first form)
+set -eu
+host=${AGENT_MAIL_HOST:-127.0.0.1} port=${AGENT_MAIL_PORT:-8765}
+state=$HOME/.local/state/kvokka-harness-plugins/agent-mail
+data=$HOME/.local/share/kvokka-harness-plugins/agent-mail
+[ "$host" != 0.0.0.0 ] || host_probe=127.0.0.1
+url="http://${host_probe:-$host}:$port"
+# The tools a session needs, offered when the user's Agent Mail config chooses no tool filter of its own.
+TOOLS=macro_start_session,list_agents,send_message,reply_message,fetch_inbox,acknowledge_message
+TOOLS=$TOOLS,file_reservation_paths,renew_file_reservations,release_file_reservations
+TOOLS=$TOOLS,check_file_reservation_conflicts,request_contact,respond_contact
+
+die() {
+  echo "agent-mail: $*" >&2
+  exit 1
+}
+
+ready() { curl -fsS --max-time 2 "$url/health/readiness" >/dev/null 2>&1; }
+
+supervise() {
+  bin=$(command -v mcp-agent-mail) || die "mcp-agent-mail is not on the PATH"
+  umask 077
+  # Agent Mail fails its first readiness check when the mailbox directory is missing.
+  mkdir -p "$data/mailbox"
+  export STORAGE_ROOT="$data/mailbox" DATABASE_URL="sqlite:///$data/mailbox/storage.sqlite3"
+  config="${XDG_CONFIG_HOME:-$HOME/.config}/mcp-agent-mail/config.env"
+  if ! grep -Eqs '^[[:space:]]*(export[[:space:]]+)?TOOLS_FILTER_' "$config"; then
+    export TOOLS_FILTER_ENABLED=true TOOLS_FILTER_PROFILE=custom TOOLS_FILTER_MODE=include TOOLS_FILTER_TOOLS="$TOOLS"
+  fi
+  if [ -n "${AGENT_MAIL_TOKEN:-}" ]; then
+    # The token guards the server from other hosts; the sessions of this machine reach it on loopback without it.
+    export HTTP_BEARER_TOKEN="$AGENT_MAIL_TOKEN" HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED="${HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED:-true}"
+  fi
+  # A server that keeps failing at its start (a port in use, a bad setting) is given up after five tries; the next
+  # session start tries again.
+  quick=0
+  while [ "$quick" -lt 5 ]; do
+    echo "agent-mail: $(date -u +%FT%TZ) serve on $host:$port" >&2
+    started=$(date +%s)
+    "$bin" serve --no-tui --no-reuse-running --host "$host" --port "$port" --path /mcp/ || true
+    if [ $(($(date +%s) - started)) -lt 60 ]; then quick=$((quick + 1)); else quick=0; fi
+    sleep 2
+  done
+  die "the server failed five times in a row within a minute of its start; given up"
+}
+
+case ${1:-} in
+supervise)
+  supervise
+  ;;
+'')
+  case $host in
+  127.* | localhost | ::1) ;;
+  *) [ -n "${AGENT_MAIL_TOKEN:-}" ] || die "AGENT_MAIL_HOST is $host, not loopback, and AGENT_MAIL_TOKEN is empty:" \
+    "the server is not started, since anyone who reaches $host:$port could read and send the mail of every agent" ;;
+  esac
+  for tool in curl flock setsid mcp-agent-mail; do
+    command -v "$tool" >/dev/null 2>&1 || die "$tool is not on the PATH, so the Agent Mail server cannot be started"
+  done
+  mkdir -p "$state"
+  # One starter at a time; the supervisor holds a lock of its own for as long as it runs.
+  exec 9>"$state/up.lock"
+  flock -w 60 9 || die "another session has been starting the server for a minute"
+  ready && exit 0
+  self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
+  cd "$state"
+  setsid flock -n "supervisor-$port.lock" "$self" supervise 9>&- </dev/null >>"server-$port.log" 2>&1 &
+  n=0
+  until ready; do
+    n=$((n + 1))
+    [ "$n" -lt 60 ] || die "the server does not answer on $url after 30 seconds; see $state/server-$port.log"
+    sleep 0.5
+  done
+  ;;
+*)
+  die "usage: agent-mail-up [supervise]"
+  ;;
+esac

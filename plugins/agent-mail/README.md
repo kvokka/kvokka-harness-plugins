@@ -1,0 +1,75 @@
+# agent-mail
+
+Agents that work in the same repository at the same time (in worktrees or in one checkout) coordinate through
+[Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail_rust): they write to each other in a shared thread,
+reserve the paths they edit, and see what the others hold. Git refuses a commit of a path another agent holds. One
+Agent Mail server serves every session of the machine; the plugin starts it and restarts it when it exits.
+
+## Install
+
+Claude: `/plugin install agent-mail --marketplace kvokka/kvokka-harness-plugins`. Codex and T3: see the
+[root README](../../README.md).
+
+## What the host needs
+
+- `mcp-agent-mail` (0.3.41 or newer), `curl`, `jq`, `flock` and `setsid` (util-linux) on the `PATH` of the sessions.
+- Git with configured hooks (`git hook list`), and the include of the commit check in the session's environment
+  (below).
+- A session that reaches the server's port. A Codex session with `sandbox_mode = "workspace-write"` may have no
+  network: its commits are then refused with "its reservations could not be checked".
+
+## Settings
+
+| Variable | Default | What |
+|---|---|---|
+| `AGENT_MAIL_PORT` | `8765` | the port of the server |
+| `AGENT_MAIL_HOST` | `127.0.0.1` | the address it listens on; one that is not loopback needs a token |
+| `AGENT_MAIL_TOKEN` | | the bearer clients from other hosts must send (8 characters or more) |
+| `AGENT_MAIL_TTL` | `3600` | seconds a reservation lasts unless renewed, told to the agents |
+
+The plugin's MCP server entry ([.mcp.json](.mcp.json)) is static: `http://127.0.0.1:8765/mcp/`. For another port,
+add an entry of your own with that URL (the plugin's then finds no server, which is harmless): in Claude,
+`claude mcp add --scope user --transport http agent-mail http://127.0.0.1:<port>/mcp/`; in Codex, in `config.toml`:
+
+```toml
+[mcp_servers.agent-mail]
+url = "http://127.0.0.1:<port>/mcp/"
+```
+
+With a token, the server lets the sessions of this machine in on loopback without it
+(`HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED=true` unless you set it), so the plugin's entry keeps working; a client on
+another host sends `Authorization: Bearer <token>`.
+
+## How it works
+
+- **The server.** The `SessionStart` hook runs `bin/agent-mail-up`: under a lock in
+  `~/.local/state/kvokka-harness-plugins/agent-mail/`, it checks `/health/readiness` on the port and, when nothing
+  answers, starts a detached supervisor that runs `mcp-agent-mail serve` and restarts it when it exits (five quick
+  failures in a row and it gives up until the next session start). The mailbox is in
+  `~/.local/share/kvokka-harness-plugins/agent-mail`, the server's log in `server-<port>.log` of the state directory.
+  Unless the user's Agent Mail config chooses a tool filter, the server offers the 12 tools of the protocol below. To
+  stop it: `pkill -f 'agent-mail-up supervise'; pkill -f 'mcp-agent-mail serve'`.
+- **A session's identity.** The session registers with `macro_start_session`. Its mail name is kept per T3 thread
+  (`T3CODE_THREAD_ID`), or per harness session outside T3, so a later session of the thread is the same agent. The
+  project key is the canonical common Git directory (`git rev-parse --git-common-dir`), shared by all worktrees of a
+  repository, or the directory outside Git; each project has one thread, named after the repository. The session's
+  context gets its mail name, project key, thread and inbox, and the protocol of [prompt.md](prompt.md). When the
+  server is not up, the context says why, and the session's commits are refused.
+- **The commit check.** The hook also writes `~/.local/state/kvokka-harness-plugins/agent-mail/gitconfig`, a named
+  `pre-commit` hook that runs the plugin's check; the session's Git includes it. A commit by an agent session (`T3CODE_THREAD_ID`,
+  `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID` set) in the repository it registered in sends its staged paths, both
+  sides of a rename, to `check_file_reservation_conflicts`. A path another agent holds exclusively refuses the
+  commit, naming the path and its holder; a check that cannot be made refuses it too. Other commits are not checked.
+- **The end of a session.** `SessionEnd` releases the session's reservations; the TTL ends those of a session that
+  did not end cleanly.
+
+The include goes into the environment of the session (use the absolute path of your home: T3 does not expand `~` or
+`$HOME`); with conventional-commits as well, see [its README](../conventional-commits/README.md#what-the-host-needs):
+
+```sh
+GIT_CONFIG_COUNT=1
+GIT_CONFIG_KEY_0=include.path
+GIT_CONFIG_VALUE_0=/home/<you>/.local/state/kvokka-harness-plugins/agent-mail/gitconfig
+```
+
+Set it only where the plugin is enabled: a session without a mail name has its commits refused.

@@ -1,0 +1,9 @@
+{
+  "name": "agent-mail",
+  "version": "0.1.0",
+  "description": "Agents in one repository coordinate through Agent Mail: a shared thread, path reservations, and refused commits of paths another agent holds.",
+  "author": {
+    "name": "kvokka"
+  },
+  "license": "MIT"
+}

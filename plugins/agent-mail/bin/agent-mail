@@ -1,0 +1,127 @@
+#!/bin/sh
+# The hooks of the agent-mail plugin (README.md):
+#   agent-mail session-start   SessionStart: start the server, register the session, give the agent its mail identity
+#   agent-mail session-end     SessionEnd: release the session's reservations
+#   agent-mail pre-commit      Git pre-commit: refuse a commit of paths another agent holds
+set -eu
+host=${AGENT_MAIL_HOST:-127.0.0.1} port=${AGENT_MAIL_PORT:-8765} ttl=${AGENT_MAIL_TTL:-3600}
+[ "$host" != 0.0.0.0 ] || host=127.0.0.1
+state=$HOME/.local/state/kvokka-harness-plugins/agent-mail
+root=$(cd "$(dirname "$0")/.." && pwd)
+
+die() {
+  echo "agent-mail: $*" >&2
+  exit 1
+}
+
+# `call <tool> <arguments>`: the tool's result on stdout; a failure on stderr. The token, if any, goes on stdin.
+call() {
+  request=$(printf '%s' "$2" | jq -c --arg t "$1" '{jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: {name: $t, arguments: .}}') || return 1
+  answer=$(printf '%s' "${AGENT_MAIL_TOKEN:+Authorization: Bearer $AGENT_MAIL_TOKEN}" |
+    curl -sS --max-time 30 -H @- -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+      --data-binary "$request" "http://$host:$port/mcp/") || return 1
+  printf '%s' "$answer" | jq -c --arg t "$1" '
+    if .error.code == -32601 then "tool `\($t)` is not available: the tool filter of the server hides it\n" | halt_error
+    elif .error then "tool `\($t)`: \(.error.message)\n" | halt_error
+    elif .result.isError then "tool `\($t)`: \(.result.content[0].text | (fromjson? | .error.message) // .)\n"
+      | halt_error
+    else .result.content[0].text | fromjson end'
+}
+
+# The project key: the canonical common Git directory, shared by all worktrees of a repository; outside Git the
+# directory itself.
+key() {
+  dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || dir=.
+  (cd "$dir" && pwd -P)
+}
+
+# The file that keeps the mail name of the session <id> (the T3 thread, else the harness's session).
+binding() { printf '%s/agents/%s.json' "$state" "$(printf '%s' "$1" | tr -c '[:alnum:]._-' '-')"; }
+
+# Writes stdin to a file in one step, so a reader never sees half of it.
+put() {
+  tmp=$(mktemp "$1.XXXXXX")
+  cat >"$tmp"
+  mv -f "$tmp" "$1"
+}
+
+session_start() {
+  input=$(cat)
+  cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
+  [ -z "$cwd" ] || cd "$cwd"
+  id=${T3CODE_THREAD_ID:-$(printf '%s' "$input" | jq -r '.session_id // empty')}
+  [ -n "$id" ] || die "the hook input names no session"
+  mkdir -p "$state/agents"
+  # Git includes this file (README.md): it names the commit check of the plugin as installed now.
+  printf '[hook "kvokka-agent-mail"]\n\tevent = pre-commit\n\tcommand = %s pre-commit\n' "'$root/bin/agent-mail'" |
+    put "$state/gitconfig"
+  file=$(binding "$id")
+  key=$(key)
+  thread=$(basename "${key%/.git}" | tr -c '[:alnum:]._\n-' '-')
+  # A session of a thread seen before keeps its name in the same project.
+  name=$(jq -r --arg key "$key" 'select(.key == $key) | .name' "$file" 2>/dev/null || true)
+  program=codex
+  [ -z "${CLAUDECODE:-}" ] || program=claude-code
+  args=$(printf '%s' "$input" | jq -c --arg key "$key" --arg id "$id" --arg name "$name" --arg program "$program" '
+    {human_key: $key, program: $program, model: (.model // "unknown"), task_description: $id, inbox_limit: 5}
+    + if $name != "" then {agent_name: $name} else {} end')
+  # A step that fails prints nothing on stdout, one that works nothing on stderr.
+  if up=$("$root/bin/agent-mail-up" 2>&1) && started=$(call macro_start_session "$args" 2>&1); then
+    name=$(printf '%s' "$started" | jq -r .agent.name)
+    jq -nc --arg name "$name" --arg key "$key" --arg thread "$thread" '{name: $name, key: $key, thread: $thread}' |
+      put "$file"
+    text=$(printf '%s' "$started" | jq -r --arg key "$key" --arg thread "$thread" --arg ttl "$ttl" '
+      "Agent Mail (MCP server `agent-mail`): you are `\(.agent.name)` in the project `\($key)`; use `\($key)` as "
+      + "`project_key`, `\(.agent.name)` as `agent_name` and `sender_name`, `\($thread)` as `thread_id`, and "
+      + "`ttl_seconds: \($ttl)` for reservations, with paths relative to the repository root.\n"
+      + if (.inbox | length) == 0 then "Your inbox is empty."
+        else "Your inbox:\n" + (.inbox | map("- #\(.id) from \(.from): \(.subject) (thread \(.thread_id // "none"))")
+          | join("\n")) end')
+    text="$text
+
+$(cat "$root/prompt.md")"
+  else
+    text="Agent Mail is unavailable (${started:-$up}): you have no mail name, and your commits in this repository are refused."
+  fi
+  jq -nc --arg t "$text" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $t}}'
+}
+
+session_end() {
+  id=${T3CODE_THREAD_ID:-$(jq -r '.session_id // empty')}
+  file=$(binding "$id")
+  [ -f "$file" ] || exit 0
+  call release_file_reservations "$(jq -c '{project_key: .key, agent_name: .name}' "$file")" >/dev/null
+}
+
+pre_commit() {
+  id=${T3CODE_THREAD_ID:-${CLAUDE_CODE_SESSION_ID:-${CODEX_THREAD_ID:-}}}
+  # A commit outside an agent's session is not checked.
+  [ -n "$id" ] || exit 0
+  # Both sides of a rename: each is a path of the commit.
+  paths=$(git diff --cached --name-only --no-renames -z | jq -Rsc 'split("\u0000") | map(select(length > 0))')
+  [ "$paths" != "[]" ] || exit 0
+  file=$(binding "$id")
+  [ -f "$file" ] ||
+    die "the commit is refused: this session has no Agent Mail name to check its reservations; see its session start"
+  # A repository the session did not register in is not coordinated by it.
+  [ "$(jq -r .key "$file")" = "$(key)" ] || exit 0
+  args=$(jq -c --argjson paths "$paths" '{project_key: .key, agent_name: .name, paths: $paths}' "$file")
+  result=$(call check_file_reservation_conflicts "$args") ||
+    die "the commit is refused: its reservations could not be checked"
+  held=$(printf '%s' "$result" | jq -r --arg me "$(jq -r .name "$file")" '.conflicts[]? | .path as $p | .holders[]?
+    | select(.exclusive and .agent != $me) | "  \($p): reserved by \(.agent) (\(.path_pattern), until \(.expires_ts))"')
+  if [ -n "$held" ]; then
+    printf 'agent-mail: the commit is refused: other agents hold these paths:\n%s\n' "$held" >&2
+    exit 1
+  fi
+  [ "$(printf '%s' "$result" | jq .output_truncated)" != true ] ||
+    die "the commit is refused: the check of its reservations was cut short"
+}
+
+case ${1:-} in
+session-start) session_start ;;
+session-end) session_end ;;
+pre-commit) pre_commit ;;
+*) die "usage: agent-mail session-start | session-end | pre-commit" ;;
+esac
