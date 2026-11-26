@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Runs codex after trusting the hooks of the kvokka-harness-plugins plugins in its CODEX_HOME.
+
+Temporary: delete it once Codex or T3 trusts plugin hooks on their own. Codex skips a plugin hook until the user
+trusts it, and any change to the plugin makes it untrusted again. This wrapper asks `codex app-server` for the hooks,
+writes `trusted_hash = currentHash` to the user config for each enabled, unmanaged hook of a plugin of this
+marketplace that is not trusted, then replaces itself with the real codex and the same arguments. Any failure of the
+trust step is one line on stderr, and codex runs all the same.
+"""
+
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+
+MARKETPLACE = "@kvokka-harness-plugins"
+TIMEOUT = 30
+
+
+def real_codex():
+    """The codex this wrapper stands for: CODEX_TRUSTED_REAL, else the first `codex` on PATH that is not this file."""
+    if os.environ.get("CODEX_TRUSTED_REAL"):
+        return os.environ["CODEX_TRUSTED_REAL"]
+    me = os.path.realpath(__file__)
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        path = shutil.which("codex", path=d or ".")
+        if path and os.path.realpath(path) != me:
+            return path
+    raise SystemExit("codex-trusted: no codex on PATH but this wrapper; set CODEX_TRUSTED_REAL")
+
+
+def edits(hooks):
+    """The config edits that trust the hooks of this marketplace's plugins that are not trusted yet."""
+    return [
+        {
+            "keyPath": "hooks.state.%s.trusted_hash" % json.dumps(h["key"]),
+            "value": h["currentHash"],
+            "mergeStrategy": "upsert",
+        }
+        for h in hooks
+        if h.get("source") == "plugin"
+        and str(h.get("pluginId", "")).endswith(MARKETPLACE)
+        and h.get("enabled") is True
+        and h.get("isManaged") is False
+        and h.get("trustStatus") != "trusted"
+        and h.get("key")
+        and h.get("currentHash")
+    ]
+
+
+def user_layer(config):
+    for layer in config.get("layers") or []:
+        name = layer.get("name") or {}
+        if name.get("type") == "user" and name.get("profile") is None:
+            return name["file"], layer["version"]
+    raise RuntimeError("no user config layer in CODEX_HOME")
+
+
+def trust(codex):
+    proc = subprocess.Popen(
+        [codex, "app-server", "--listen", "stdio://"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    ids = iter(range(1, 1000))
+
+    def call(method, params):
+        i = next(ids)
+        proc.stdin.write(json.dumps({"id": i, "method": method, "params": params}) + "\n")
+        proc.stdin.flush()
+        for line in proc.stdout:
+            msg = json.loads(line)
+            if msg.get("id") == i:
+                if "result" not in msg:
+                    raise RuntimeError("%s: %s" % (method, msg.get("error")))
+                return msg["result"]
+        raise RuntimeError("codex app-server closed during %s" % method)
+
+    try:
+        call("initialize", {"clientInfo": {"name": "codex-trusted", "version": "0"},
+                            "capabilities": {"experimentalApi": True}})
+        # The version before the listing: a change of the config in between makes the write fail, not overwrite it.
+        file, version = user_layer(call("config/read", {"includeLayers": True}))
+        listing = call("hooks/list", {})
+        todo = edits([h for group in listing["data"] for h in group.get("hooks", [])])
+        if todo:
+            call("config/batchWrite", {"filePath": file, "expectedVersion": version,
+                                       "reloadUserConfig": True, "edits": todo})
+            print("codex-trusted: trusted %d plugin hook(s)" % len(todo), file=sys.stderr)
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def main():
+    codex = real_codex()
+
+    def timeout(*_):
+        raise TimeoutError("no answer in %d s" % TIMEOUT)
+
+    signal.signal(signal.SIGALRM, timeout)
+    signal.alarm(TIMEOUT)
+    try:
+        trust(codex)
+    except Exception as e:  # noqa: BLE001 - any failure leaves codex to run untouched
+        print("codex-trusted: hooks not trusted: %s" % e, file=sys.stderr)
+    finally:
+        signal.alarm(0)
+    os.execv(codex, [codex] + sys.argv[1:])
+
+
+if __name__ == "__main__":
+    main()
