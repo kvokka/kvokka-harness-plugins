@@ -19,7 +19,7 @@ call() {
   request=$(printf '%s' "$2" | jq -c --arg t "$1" '{jsonrpc: "2.0", id: 1, method: "tools/call",
     params: {name: $t, arguments: .}}') || return 1
   answer=$(printf '%s' "${AGENT_MAIL_TOKEN:+Authorization: Bearer $AGENT_MAIL_TOKEN}" |
-    curl -sS --max-time 30 -H @- -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    curl -sS --max-time "${max_time:-30}" -H @- -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
       --data-binary "$request" "http://$host:$port/mcp/") || return 1
   printf '%s' "$answer" | jq -c --arg t "$1" '
     if .error.code == -32601 then "tool `\($t)` is not available: the tool filter of the server hides it\n" | halt_error
@@ -88,6 +88,8 @@ $(cat "$root/prompt.md")"
 }
 
 session_end() {
+  # Codex gives a SessionEnd hook 1 s by default, and both harnesses cap it at a few seconds.
+  max_time=1
   id=${T3CODE_THREAD_ID:-$(jq -r '.session_id // empty')}
   file=$(binding "$id")
   [ -f "$file" ] || exit 0

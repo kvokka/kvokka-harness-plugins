@@ -4,7 +4,7 @@
       { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/agent-mail\" session-start", "timeout": 120 }] }
     ],
     "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/agent-mail\" session-end", "timeout": 10 }] }
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/agent-mail\" session-end" }] }
     ]
   }
 }
