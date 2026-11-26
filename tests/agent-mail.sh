@@ -157,7 +157,15 @@ CODEX_THREAD_ID=sb git commit -q -m 'feat: add b.txt'
 cd "$tmp/repo"
 echo c >a.txt
 git add a.txt
-CLAUDE_CODE_SESSION_ID=sa git commit -q -m 'fix: change a.txt'
+# A session inside another one has both ids, and both agents are it: B with an unbound inner session is refused, A
+# inside B and B inside A commit A's path.
+if CLAUDE_CODE_SESSION_ID=sb CODEX_THREAD_ID=inner git commit -q -m 'fix: change a.txt' 2>/dev/null; then
+  fail "nested: B committed A's path"
+fi
+CLAUDE_CODE_SESSION_ID=sb CODEX_THREAD_ID=sa git commit -q -m 'fix: change a.txt'
+echo d >a.txt
+git add a.txt
+CLAUDE_CODE_SESSION_ID=sa CODEX_THREAD_ID=sb git commit -q -m 'fix: change a.txt again'
 
 # The end of A's session releases its reservations.
 echo '{"hook_event_name":"SessionEnd","session_id":"sa"}' | "$plugin/bin/agent-mail" session-end

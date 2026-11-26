@@ -101,7 +101,8 @@ keeps working. With `0.0.0.0` the plugin reaches the server on `127.0.0.1`; with
   runs `bin/agent-mail pre-commit`. A commit by an agent session (`CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID`
   set, the harness's session id) in the repository it registered in sends its staged paths, both sides of a rename, to
   `check_file_reservation_conflicts`; the session's mail name is read from
-  `~/.local/state/kvokka-harness-plugins/agent-mail/`. A path another agent holds exclusively refuses the
+  `~/.local/state/kvokka-harness-plugins/agent-mail/`. A session started inside another one (Codex in Claude, or
+  Claude in Codex) has both ids, and the names of both count as its own. A path another agent holds exclusively refuses the
   commit, naming the path and its holder; a check that cannot be made refuses it too, and so does a session kept
   with no name. An agent session the plugin never saw passes with a warning; other commits, a person's included,
   are not checked.

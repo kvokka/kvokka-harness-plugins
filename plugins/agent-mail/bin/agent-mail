@@ -127,28 +127,37 @@ session_end() {
 }
 
 pre_commit() {
-  # The harness session the commit runs in: both harnesses export its id to their commands.
-  id=${CLAUDE_CODE_SESSION_ID:-${CODEX_THREAD_ID:-}}
   # A commit outside an agent's session is not checked.
-  [ -n "$id" ] || exit 0
+  [ -n "${CLAUDE_CODE_SESSION_ID:-}${CODEX_THREAD_ID:-}" ] || exit 0
   need_jq
   # Both sides of a rename: each is a path of the commit.
   paths=$(git diff --cached --name-only --no-renames -z | jq -Rsc 'split("\u0000") | map(select(length > 0))')
   [ "$paths" != "[]" ] || exit 0
-  file=$(binding "$id")
-  if [ ! -f "$file" ]; then
-    echo "agent-mail: this session is not coordinated (no agent-mail plugin); reservations not checked" >&2
+  key=$(key)
+  # The names of the harness sessions the commit runs in, in this project: both harnesses export the id of their
+  # session, and a session started inside another one inherits the outer id, so all of them are this agent.
+  bound=false names='[]'
+  for id in "${CLAUDE_CODE_SESSION_ID:-}" "${CODEX_THREAD_ID:-}"; do
+    file=$(binding "$id")
+    [ -n "$id" ] && [ -f "$file" ] || continue
+    bound=true
+    names=$(jq -c --arg key "$key" --argjson names "$names" 'if .key == $key then $names + [.name] else $names end' "$file")
+  done
+  if [ "$names" = '[]' ]; then
+    # A repository the session did not register in is not coordinated by it.
+    [ "$bound" = true ] ||
+      echo "agent-mail: this session is not coordinated (no agent-mail plugin); reservations not checked" >&2
     exit 0
   fi
-  # A repository the session did not register in is not coordinated by it.
-  [ "$(jq -r .key "$file")" = "$(key)" ] || exit 0
-  [ -n "$(jq -r .name "$file")" ] ||
+  printf '%s' "$names" | jq -e 'all(. != "")' >/dev/null ||
     die "the commit is refused: this session has no Agent Mail name to check its reservations; see its session start"
-  args=$(jq -c --argjson paths "$paths" '{project_key: .key, agent_name: .name, paths: $paths}' "$file")
+  args=$(jq -nc --arg key "$key" --argjson names "$names" --argjson paths "$paths" \
+    '{project_key: $key, agent_name: $names[0], paths: $paths}')
   result=$(call check_file_reservation_conflicts "$args") ||
     die "the commit is refused: its reservations could not be checked"
-  held=$(printf '%s' "$result" | jq -r --arg me "$(jq -r .name "$file")" '.conflicts[]? | .path as $p | .holders[]?
-    | select(.exclusive and .agent != $me) | "  \($p): reserved by \(.agent) (\(.path_pattern), until \(.expires_ts))"')
+  held=$(printf '%s' "$result" | jq -r --argjson me "$names" '.conflicts[]? | .path as $p | .holders[]?
+    | select(.exclusive and (.agent | IN($me[]) | not))
+    | "  \($p): reserved by \(.agent) (\(.path_pattern), until \(.expires_ts))"')
   if [ -n "$held" ]; then
     printf 'agent-mail: the commit is refused: other agents hold these paths:\n%s\n' "$held" >&2
     exit 1
