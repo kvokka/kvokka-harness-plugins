@@ -19,6 +19,11 @@
       "name": "conventional-commits",
       "source": "./plugins/conventional-commits",
       "description": "Git refuses a commit of the session whose subject is not a Conventional Commit."
+    },
+    {
+      "name": "context-budget",
+      "source": "./plugins/context-budget",
+      "description": "Bounds the context of a session: past a soft limit the agent wraps up, past a hard limit the session stops."
     }
   ]
 }
