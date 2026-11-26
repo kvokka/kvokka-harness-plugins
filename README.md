@@ -60,7 +60,8 @@ curl -fsSL https://raw.githubusercontent.com/kvokka/kvokka-harness-plugins/main/
 A provider instance in `~/.t3/userdata/settings.json` gives its sessions the plugins, the environment and the
 launch arguments. T3 expands neither `~` nor `$HOME`: write absolute paths (`/home/<you>/...` below).
 
-A Claude instance, with the plugins of a checkout (or install them from the marketplace and drop `--plugin-dir`):
+A Claude instance. Install the plugins from the marketplace and disable them at user scope (`claude plugin disable
+dcg@kvokka-harness-plugins`, and so on), so that only the instances that enable them in `--settings` get them:
 
 ```json
 {
@@ -70,7 +71,7 @@ A Claude instance, with the plugins of a checkout (or install them from the mark
       "displayName": "Claude coder",
       "enabled": true,
       "config": {
-        "launchArgs": "--plugin-dir /home/<you>/src/kvokka-harness-plugins/plugins/conventional-commits --plugin-dir /home/<you>/src/kvokka-harness-plugins/plugins/agent-mail --plugin-dir /home/<you>/src/kvokka-harness-plugins/plugins/context-budget --settings '{\"autoCompactWindow\":1000000}'"
+        "launchArgs": "--settings '{\"enabledPlugins\":{\"conventional-commits@kvokka-harness-plugins\":true,\"agent-mail@kvokka-harness-plugins\":true,\"context-budget@kvokka-harness-plugins\":true},\"autoCompactWindow\":1000000}'"
       },
       "environment": [
         { "name": "GIT_CONFIG_COUNT", "value": "2" },
