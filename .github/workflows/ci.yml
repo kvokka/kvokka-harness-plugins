@@ -7,7 +7,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      AGENT_MAIL_ASSET: mcp-agent-mail-x86_64-unknown-linux-gnu.tar.xz
+      AGENT_MAIL_SHA256: 962a34d0aba41d08432e6873cb8bf96c7a547bfad7ac273c7dabc499639b86f4
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -yq jq shellcheck
+      - name: Install mcp-agent-mail 0.3.41
+        run: |
+          curl -fsSLO "https://github.com/Dicklesworthstone/mcp_agent_mail_rust/releases/download/v0.3.41/$AGENT_MAIL_ASSET"
+          echo "$AGENT_MAIL_SHA256  $AGENT_MAIL_ASSET" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xJf "$AGENT_MAIL_ASSET" -C "$HOME/.local/bin" mcp-agent-mail
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+      - run: git --version && mcp-agent-mail --version
       - run: tests/run
