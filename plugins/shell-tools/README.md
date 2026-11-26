@@ -7,10 +7,12 @@ compactly with `toon` (`foo | toon`, while programs that parse JSON keep getting
 
 ## Install
 
-Claude: `/plugin install shell-tools --marketplace kvokka/kvokka-harness-plugins`. Codex and T3: see the
-[root README](../../README.md).
+Install and enable the plugin as the [root README](../../README.md#install) says.
 
 ## What the host needs
 
-`jq` for the hook. `rg`, `ast-grep` and `toon` on the `PATH` of the sessions: the plugin does not check them, and an
-agent that misses one sees the shell's own error.
+- `jq` for the hook: `mise use -g jq`.
+- On the `PATH` of the sessions, unchecked (an agent that misses one sees the shell's own error):
+  - `rg`: `mise use -g ripgrep`;
+  - `ast-grep`: `mise use -g ast-grep`;
+  - `toon`: `mise use -g github:Dicklesworthstone/toon_rust`.

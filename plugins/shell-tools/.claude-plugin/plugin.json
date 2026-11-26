@@ -1,6 +1,6 @@
 {
   "name": "shell-tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tells each agent and subagent to search code with rg and ast-grep and to read JSON with toon.",
   "author": {
     "name": "kvokka"

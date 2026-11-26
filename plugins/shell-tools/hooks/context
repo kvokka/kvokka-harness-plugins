@@ -1,5 +1,6 @@
 #!/bin/sh
 # SessionStart and SubagentStart hook of Claude and Codex: prompt.md joins the agent's context.
 set -eu
+command -v jq >/dev/null 2>&1 || { echo "shell-tools: jq is not on the PATH; install it: mise use -g jq" >&2; exit 1; }
 event=$(jq -r .hook_event_name)
 jq -Rsc --arg e "$event" '{hookSpecificOutput: {hookEventName: $e, additionalContext: .}}' "$(dirname "$0")/../prompt.md"

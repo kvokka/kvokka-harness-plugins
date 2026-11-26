@@ -24,6 +24,10 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## shell-tools
 
+### 0.1.1
+
+- A missing `jq` is reported with `mise use -g jq`; the README names the mise command of each tool.
+
 ### 0.1.0
 
 - Tell each Claude or Codex session and subagent to search with `rg` and `ast-grep` and to read JSON with `toon`.
