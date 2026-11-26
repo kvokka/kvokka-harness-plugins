@@ -19,6 +19,12 @@ for p in $dirs; do
   awk -v p="## $p" -v v="### ${claude#* }" '$0 == p {s = 1; next} /^## / {s = 0} s && $0 == v {f = 1} END {exit !f}' \
     CHANGELOG.md || fail "$p: CHANGELOG.md has no section for ${claude#* }"
   [ -f "plugins/$p/README.md" ] || fail "$p: no README.md"
+  for skill in "plugins/$p"/skills/*/SKILL.md; do
+    [ -f "$skill" ] || continue
+    name=$(basename "$(dirname "$skill")")
+    sed -n '1{/^---$/!q1}; 2,/^---$/p' "$skill" | grep -qx "name: $name" || fail "$skill: no front matter naming $name"
+    sed -n '2,/^---$/p' "$skill" | grep -q '^description: .' || fail "$skill: no description"
+  done
   [ ! -f "plugins/$p/hooks/hooks.json" ] || jq -e .hooks "plugins/$p/hooks/hooks.json" >/dev/null ||
     fail "$p: hooks/hooks.json has no hooks"
 done

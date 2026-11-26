@@ -29,6 +29,11 @@
       "name": "agent-mail",
       "source": "./plugins/agent-mail",
       "description": "Agents in one repository coordinate through Agent Mail: a shared thread, path reservations, and refused commits of paths another agent holds."
+    },
+    {
+      "name": "agents",
+      "source": "./plugins/agents",
+      "description": "Skills for the roles of a coding loop: coder, reviewer and expert; each says how to work, the caller sets the output."
     }
   ]
 }

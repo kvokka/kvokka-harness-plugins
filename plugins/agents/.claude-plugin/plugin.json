@@ -1,0 +1,9 @@
+{
+  "name": "agents",
+  "version": "0.1.0",
+  "description": "Skills for the roles of a coding loop: coder, reviewer and expert; each says how to work, the caller sets the output.",
+  "author": {
+    "name": "kvokka"
+  },
+  "license": "MIT"
+}
