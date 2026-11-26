@@ -13,8 +13,8 @@ Claude: `/plugin install agent-mail --marketplace kvokka/kvokka-harness-plugins`
 ## What the host needs
 
 - `mcp-agent-mail` (0.3.41 or newer), `curl`, `jq`, `flock` and `setsid` (util-linux) on the `PATH` of the sessions.
-- Git with configured hooks (`git hook list`), and the include of the commit check in the session's environment
-  (below).
+- Git 2.54 or newer (hooks defined in its configuration, `hook.<name>.command`), and the include of the commit check
+  in the session's environment (below).
 - A session that reaches the server's port. A Codex session with `sandbox_mode = "workspace-write"` may have no
   network: its commits are then refused with "its reservations could not be checked".
 

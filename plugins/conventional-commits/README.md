@@ -20,7 +20,7 @@ with the plugin.
 
 ## What the host needs
 
-- Git with configured hooks (`git hook list`), and `jq`.
+- Git 2.54 or newer (hooks defined in its configuration, `hook.<name>.command`), and `jq`.
 - The include in the environment of the session (a plugin cannot set it). Use the absolute path of your home: T3 does
   not expand `~` or `$HOME` in an instance's environment.
 
