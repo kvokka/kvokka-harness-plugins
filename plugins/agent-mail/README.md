@@ -27,6 +27,16 @@ The hook refuses the commits of a session whose registration failed, and lets th
 of an agent session that has no agent-mail plugin. A Codex session whose plugin hooks are not trusted is such a
 session: it commits with only the warning.
 
+A Codex session with `sandbox_mode = "workspace-write"` runs `git commit`, and so prek, inside its sandbox. prek
+writes its log and a lock in its home (`~/.cache/prek`, or `PREK_HOME`) at every run, so a home the sandbox cannot
+write fails each commit. Prepare the hooks outside the sandbox once (`prek prepare-hooks` in the repository: it
+fetches them, which needs the network), and make the home writable in `config.toml`:
+
+```toml
+[sandbox_workspace_write]
+writable_roots = ["/home/<you>/.cache/prek"]
+```
+
 ## What the host needs
 
 - `mcp-agent-mail` (0.3.41 or newer): `mise use -g github:Dicklesworthstone/mcp_agent_mail_rust`.

@@ -22,6 +22,16 @@ repos:
 and install its Git hook: `prek install --hook-type commit-msg`. prek refuses while `core.hooksPath` is set in the
 user's or the system's Git config, and says how to go on.
 
+A Codex session with `sandbox_mode = "workspace-write"` runs `git commit`, and so prek, inside its sandbox. prek
+writes its log and a lock in its home (`~/.cache/prek`, or `PREK_HOME`) at every run, so a home the sandbox cannot
+write fails each commit. Prepare the hook outside the sandbox once (`prek prepare-hooks` in the repository: it
+fetches the hook and its Python environment, which needs the network), and make the home writable in `config.toml`:
+
+```toml
+[sandbox_workspace_write]
+writable_roots = ["/home/<you>/.cache/prek"]
+```
+
 ## What the check accepts
 
 With no `args`, conventional-pre-commit takes a subject with one of the types `build`, `chore`, `ci`, `docs`,
