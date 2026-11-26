@@ -86,8 +86,9 @@ keeps working. With `0.0.0.0` the plugin reaches the server on `127.0.0.1`; with
   `~/.local/share/kvokka-harness-plugins/agent-mail`, the server's log in `server-<port>.log` of the state directory,
   started afresh by each supervisor. The hook waits at most 30 seconds for another session's start and 30 for the
   server to answer.
-  Unless the user's Agent Mail config chooses a tool filter, the server offers the 12 tools of the protocol below. To
-  stop it: `pkill -f 'agent-mail-up supervise'; pkill -f 'mcp-agent-mail serve'`.
+  Unless the user's Agent Mail config chooses a tool filter, the server offers the 12 tools of the protocol below. The
+  supervisor leads a process group with its server; to stop the server of one port (8765 here):
+  `kill -- -"$(pgrep -f 'supervisor-8765.lock')"`.
 - **A session's identity.** The session registers with `macro_start_session`. Its mail name is kept per harness
   session (the hook input's `session_id`), so a resumed session is the same agent, and each session started from
   inside another one (a nested `claude -p` or `codex exec`) is an agent of its own. The
