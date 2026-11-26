@@ -49,7 +49,8 @@ failed attempts. The expert is no subagent: call T3's `delegate_task` (in T3 Cod
 skill, without its front matter), then your brief: whether it is a plan, a design or a bug; the goal; the documents
 by section; the files; the file the expert writes its result to; and, for a plan, that each piece must fit 100-150k
 tokens of context with a checkable "done when". When the expert says how to do a thing, follow it; a departure
-needs its reason in your answer.
+needs its reason in your answer. `delegate_task` returns at once: wait for the expert's task to finish
+(`task_status`) and read its result file before you act on the plan.
 
 ## Implementation
 
