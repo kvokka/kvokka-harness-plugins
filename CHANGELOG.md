@@ -49,6 +49,10 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## context-budget
 
+### 0.1.2
+
+- The dump of a stopped session in a repository with no commits yet shows its status, not "not a git checkout".
+
 ### 0.1.1
 
 - A missing `jq` is reported with `mise use -g jq`.

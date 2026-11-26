@@ -50,6 +50,11 @@ fenced() { printf '\n%s\n%s\n%s\n\n' '```' "$1" '```'; }
 git_state() {
     echo "## git status --short"
     fenced "$(git status --short 2>&1 | head -n 80)"
+    if ! git rev-parse -q --verify HEAD >/dev/null 2>&1; then
+        echo "The repository has no commits yet."
+        echo
+        return
+    fi
     # The commits of the session: since the commit it started on, else the last ten.
     base=$(cat "$data/$session.base" 2>/dev/null || true)
     if [ -n "$base" ]; then set -- "$base..HEAD"; else set -- -n 10; fi
@@ -66,7 +71,7 @@ dump() {
     echo "The ${agent:+subagent $agent of the }session $session went past its context budget before it wrapped up."
     echo "Below is the state as it was then."
     echo
-    if git rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    if git rev-parse --git-dir >/dev/null 2>&1; then
         git_state
     else
         echo "Its directory $(pwd) is not a git checkout."

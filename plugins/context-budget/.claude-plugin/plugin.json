@@ -1,6 +1,6 @@
 {
   "name": "context-budget",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bounds the context of a session: past a soft limit the agent wraps up, past a hard limit the session stops.",
   "author": {
     "name": "kvokka"
