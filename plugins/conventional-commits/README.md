@@ -2,7 +2,7 @@
 
 Git refuses a commit of a Claude or Codex session whose subject is not a Conventional Commit: a lowercase type, an
 optional scope in parentheses, an optional `!` and a description, e.g. `feat(api)!: change the response format`.
-Bodies and trailers are free. The session start gives the agent one example subject ([prompt.md](prompt.md)). Every
+Bodies and trailers are free, and the subjects Git writes for a merge (`Merge ...`) or a revert (`Revert "..."`) pass. The session start gives the agent one example subject ([prompt.md](prompt.md)). Every
 commit made in the session is checked, in any repository.
 
 ## Install

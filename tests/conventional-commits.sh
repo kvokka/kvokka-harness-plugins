@@ -26,3 +26,14 @@ reject 'Fix: capital type'
 reject 'fix:  two spaces'
 reject 'fix(a b): space in the scope'
 [ "$(git rev-list --count HEAD)" = 2 ]
+# The subjects Git writes for a merge and a revert pass.
+git checkout -q -b side
+echo side >side.txt
+git add side.txt
+commit 'feat: on the side'
+git checkout -q -
+git merge -q --no-ff --no-edit side
+git log -1 --format=%s | grep -q '^Merge branch'
+git revert --no-edit HEAD^2 >/dev/null
+git log -1 --format=%s | grep -q '^Revert "'
+reject 'Merged things'
