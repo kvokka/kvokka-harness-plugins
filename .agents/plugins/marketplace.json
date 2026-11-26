@@ -1,0 +1,5 @@
+{
+  "name": "kvokka-harness-plugins",
+  "interface": { "displayName": "kvokka harness plugins" },
+  "plugins": []
+}

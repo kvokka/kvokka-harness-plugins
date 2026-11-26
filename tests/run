@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs every test in tests/ (each an executable file: tests/*.sh, tests/*.py), then shellcheck over every shell script.
+set -eu
+cd "$(dirname "$0")/.."
+log=$(mktemp)
+failed=0
+for t in tests/*.sh tests/*.py; do
+  [ -e "$t" ] || continue
+  if "$t" >"$log" 2>&1; then
+    echo "ok   $t"
+  else
+    echo "FAIL $t"
+    tail -n 40 "$log"
+    failed=1
+  fi
+done
+scripts=$(git ls-files -z | xargs -0 grep -lE '^#!/bin/(ba)?sh' | sort)
+# shellcheck disable=SC2086 # one path per line, none with spaces
+if shellcheck $scripts; then echo "ok   shellcheck"; else echo "FAIL shellcheck"; failed=1; fi
+exit "$failed"
