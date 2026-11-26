@@ -52,8 +52,12 @@ git reset -q --hard HEAD^
 # Without jq the check names the command that installs it.
 nojq=$tmp/nojq
 mkdir "$nojq"
-ln -s "$(command -v git)" "$nojq/git"
-out=$(CLAUDE_CODE_SESSION_ID=lone PATH="$nojq:/usr/bin:/bin" "$plugin/bin/agent-mail" pre-commit 2>&1) && fail "passed without jq"
+# Every tool of the system but jq: on some hosts (CI runners) jq sits in /usr/bin beside the rest.
+for f in /usr/bin/* /bin/* "$(command -v git)"; do
+    n=${f##*/}
+    [ "$n" = jq ] || [ -e "$nojq/$n" ] || ln -s "$f" "$nojq/$n"
+done
+out=$(CLAUDE_CODE_SESSION_ID=lone PATH="$nojq" "$plugin/bin/agent-mail" pre-commit 2>&1) && fail "passed without jq"
 case $out in *"mise use -g jq"*) ;; *) [ -x /usr/bin/jq ] || fail "no reason: $out" ;; esac
 
 # Through prek: the hook of this repository's .pre-commit-hooks.yaml, from a copy of the working tree.
