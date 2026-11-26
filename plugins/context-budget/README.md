@@ -46,7 +46,8 @@ the rollout.
   limit stops alone.
 - `PreCompact`, past hard: the same stop. Below hard the plugin answers nothing.
 
-`<data>` is the plugin's data directory, `CLAUDE_PLUGIN_DATA` (both harnesses set it). The agent hears of the soft
+`<data>` is the plugin's data directory, `CLAUDE_PLUGIN_DATA` (both harnesses set it). Each session start deletes
+the files there that are older than 7 days, dumps included. The agent hears of the soft
 limit only: the stop is a safety net a session that wraps up in time never meets.
 
 ## On Codex

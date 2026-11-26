@@ -24,9 +24,13 @@ codex_usage() {
 }
 ctx() { printf '%s' "$1" | jq -r '.hookSpecificOutput.additionalContext // empty'; }
 
-# Claude: the start names the budget and keeps the commit the session starts on.
+# Claude: the start removes week-old files, names the budget and keeps the commit the session starts on.
+mkdir -p "$tmp/data"
+touch -d '8 days ago' "$tmp/data/old.md"
+touch "$tmp/data/new.md"
 case $(ctx "$(hook SessionStart c)") in *"budget is 1k tokens"*) ;; *) fail "no budget at the start" ;; esac
 [ "$(cat "$tmp/data/c.base")" = "$(git -C "$tmp/work" rev-parse HEAD)" ] || fail "no base"
+[ ! -e "$tmp/data/old.md" ] && [ -e "$tmp/data/new.md" ] || fail "the prune of old files"
 claude_usage 500 c
 [ -z "$(hook PostToolUse c)" ] || fail "a note under the budget"
 [ -z "$(hook PreToolUse c '{"tool_name":"Agent"}')" ] || fail "a subagent denied under the budget"
