@@ -13,6 +13,10 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## dcg
 
+### 0.1.1
+
+- A missing `dcg` is reported with the `mise use -g` command that installs it.
+
 ### 0.1.0
 
 - Check each shell command of a Claude or Codex session with the host's `dcg` before it runs; without `dcg` no

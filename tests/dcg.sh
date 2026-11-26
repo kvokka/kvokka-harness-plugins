@@ -7,7 +7,7 @@ input='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command
 
 # Without dcg: exit 2 and a reason.
 out=$(printf '%s' "$input" | PATH="$bin:/usr/bin:/bin" "$guard" 2>&1) && exit 1
-case $out in *"not on the PATH"*) ;; *) echo "no reason: $out"; exit 1 ;; esac
+case $out in *"mise use -g github:Dicklesworthstone/destructive_command_guard"*) ;; *) echo "no reason: $out"; exit 1 ;; esac
 
 # With dcg: it gets the input on stdin and its answer is the hook's.
 cat >"$bin/dcg" <<'DCG'

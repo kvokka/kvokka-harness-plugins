@@ -1,6 +1,6 @@
 {
   "name": "dcg",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Every shell command of a session goes through dcg (destructive_command_guard) before it runs.",
   "author": {
     "name": "kvokka"
