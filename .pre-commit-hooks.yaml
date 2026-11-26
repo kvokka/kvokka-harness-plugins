@@ -1,0 +1,8 @@
+- id: agent-mail-reservations
+  name: Agent Mail reservations
+  description: Refuses a commit of an agent's session that touches paths another agent holds in Agent Mail.
+  entry: plugins/agent-mail/bin/agent-mail pre-commit
+  language: script
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]

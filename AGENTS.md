@@ -8,6 +8,7 @@ own `README.md`; how to install them is in the root `README.md`.
 ```
 .claude-plugin/marketplace.json            Claude marketplace: every plugin, source ./plugins/<name>
 .agents/plugins/marketplace.json           Codex marketplace: the same plugins
+.pre-commit-hooks.yaml                     prek/pre-commit hooks of this repository (agent-mail's commit check)
 plugins/<name>/.claude-plugin/plugin.json  Claude manifest
 plugins/<name>/.codex-plugin/plugin.json   Codex manifest (needs "interface": {"displayName": ...})
 plugins/<name>/hooks/hooks.json            hooks of both harnesses; commands use ${CLAUDE_PLUGIN_ROOT}

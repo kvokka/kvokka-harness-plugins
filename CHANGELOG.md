@@ -2,6 +2,15 @@
 
 Each plugin has its own version; its section lists its releases, newest first.
 
+## Repository tags
+
+The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-hooks.yaml`, which a
+`.pre-commit-config.yaml` pins by `rev`.
+
+### v0.2.0
+
+- The hook `agent-mail-reservations` (agent-mail 0.2.0).
+
 ## dcg
 
 ### 0.1.0
@@ -31,6 +40,12 @@ Each plugin has its own version; its section lists its releases, newest first.
   past it.
 
 ## agent-mail
+
+### 0.2.0
+
+- The commit check is the prek (pre-commit) hook `agent-mail-reservations` of this repository's
+  `.pre-commit-hooks.yaml`, installed per repository, in place of a Git include in the session's environment.
+- A missing `jq` or `mcp-agent-mail` is reported with the `mise use -g` command that installs it.
 
 ### 0.1.0
 

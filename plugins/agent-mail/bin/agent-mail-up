@@ -60,9 +60,11 @@ supervise)
   *) [ -n "${AGENT_MAIL_TOKEN:-}" ] || die "AGENT_MAIL_HOST is $host, not loopback, and AGENT_MAIL_TOKEN is empty:" \
     "the server is not started, since anyone who reaches $host:$port could read and send the mail of every agent" ;;
   esac
-  for tool in curl flock setsid mcp-agent-mail; do
+  for tool in curl flock setsid; do
     command -v "$tool" >/dev/null 2>&1 || die "$tool is not on the PATH, so the Agent Mail server cannot be started"
   done
+  command -v mcp-agent-mail >/dev/null 2>&1 || die "mcp-agent-mail is not on the PATH, so the Agent Mail server" \
+    "cannot be started; install it: mise use -g github:Dicklesworthstone/mcp_agent_mail_rust"
   mkdir -p "$state"
   # One starter at a time; the supervisor holds a lock of its own for as long as it runs.
   exec 9>"$state/up.lock"

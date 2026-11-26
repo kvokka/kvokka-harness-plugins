@@ -9,6 +9,7 @@ you with them; the lines above name your mail name, the project key and your thr
 - When you change an interface, a schema or a fixture others use, tell them in the thread with the commit SHA or the
   fixture.
 - Renew your reservations before they expire (`renew_file_reservations`) and release them once you hand your work
-  over (`release_file_reservations`). A commit of a path another agent holds is refused.
+  over (`release_file_reservations`). Do not commit a path another agent holds: the commit check refuses it
+  where the repository has one.
 - An agent of another project is reached by its qualified address (`Name@project`) once your contact request is
   approved (`request_contact`, `respond_contact`).

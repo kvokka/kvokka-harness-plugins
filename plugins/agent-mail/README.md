@@ -2,19 +2,33 @@
 
 Agents that work in the same repository at the same time (in worktrees or in one checkout) coordinate through
 [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail_rust): they write to each other in a shared thread,
-reserve the paths they edit, and see what the others hold. Git refuses a commit of a path another agent holds. One
-Agent Mail server serves every session of the machine; the plugin starts it and restarts it when it exits.
+reserve the paths they edit, and see what the others hold. A pre-commit hook of this repository, run by
+[prek](https://github.com/j178/prek), refuses a commit of a path another agent holds. One Agent Mail server serves
+every session of the machine; the plugin starts it and restarts it when it exits.
 
 ## Install
 
-Claude: `/plugin install agent-mail --marketplace kvokka/kvokka-harness-plugins`. Codex and T3: see the
-[root README](../../README.md).
+Install and enable the plugin as the [root README](../../README.md#install) says. Then, in each repository where
+agents work together, add the commit check to `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/kvokka/kvokka-harness-plugins
+    rev: v0.2.0
+    hooks:
+      - id: agent-mail-reservations
+```
+
+and install its Git hook: `prek install`. `rev` is a tag of this repository: `v0.2.0` or a newer one from the
+[changelog](../../CHANGELOG.md#repository-tags). Install the hook only where every agent session has the plugin: the
+commits of an agent session without a mail name are refused.
 
 ## What the host needs
 
-- `mcp-agent-mail` (0.3.41 or newer), `curl`, `jq`, `flock` and `setsid` (util-linux) on the `PATH` of the sessions.
-- Git 2.54 or newer (hooks defined in its configuration, `hook.<name>.command`), and the include of the commit check
-  in the session's environment (below).
+- `mcp-agent-mail` (0.3.41 or newer): `mise use -g github:Dicklesworthstone/mcp_agent_mail_rust`.
+- `jq`: `mise use -g jq`.
+- `prek` for the commit check: `mise use -g prek`.
+- `git`, `curl`, `flock` and `setsid` (util-linux), from the system's package manager.
 - A session that reaches the server's port. A Codex session with `sandbox_mode = "workspace-write"` may have no
   network: its commits are then refused with "its reservations could not be checked".
 
@@ -55,27 +69,18 @@ add an MCP entry of your own with that address as above.
   server to answer.
   Unless the user's Agent Mail config chooses a tool filter, the server offers the 12 tools of the protocol below. To
   stop it: `pkill -f 'agent-mail-up supervise'; pkill -f 'mcp-agent-mail serve'`.
-- **A session's identity.** The session registers with `macro_start_session`. Its mail name is kept per T3 thread
-  (`T3CODE_THREAD_ID`), or per harness session outside T3, so a later session of the thread is the same agent. The
+- **A session's identity.** The session registers with `macro_start_session`. Its mail name is kept per harness
+  session; under T3 Code, per T3 thread (`T3CODE_THREAD_ID`), so a later session of the thread is the same agent. The
   project key is the canonical common Git directory (`git rev-parse --git-common-dir`), shared by all worktrees of a
   repository, or the directory outside Git; each project has one thread, named after the repository. The session's
   context gets its mail name, project key, thread and inbox, and the protocol of [prompt.md](prompt.md). When the
-  server is not up, the context says why, and the session's commits are refused.
-- **The commit check.** The hook also writes `~/.local/state/kvokka-harness-plugins/agent-mail/gitconfig`, a named
-  `pre-commit` hook that runs the plugin's check; the session's Git includes it. A commit by an agent session (`T3CODE_THREAD_ID`,
-  `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID` set) in the repository it registered in sends its staged paths, both
-  sides of a rename, to `check_file_reservation_conflicts`. A path another agent holds exclusively refuses the
-  commit, naming the path and its holder; a check that cannot be made refuses it too. Other commits are not checked.
+  server is not up, the context says why, and the commit check refuses the session's commits.
+- **The commit check.** The hook `agent-mail-reservations` of [.pre-commit-hooks.yaml](../../.pre-commit-hooks.yaml)
+  runs `bin/agent-mail pre-commit`. A commit by an agent session (`T3CODE_THREAD_ID`, `CLAUDE_CODE_SESSION_ID` or
+  `CODEX_THREAD_ID` set) in the repository it registered in sends its staged paths, both sides of a rename, to
+  `check_file_reservation_conflicts`; the session's mail name is read from
+  `~/.local/state/kvokka-harness-plugins/agent-mail/`. A path another agent holds exclusively refuses the
+  commit, naming the path and its holder; a check that cannot be made refuses it too. Other commits, a person's
+  included, are not checked.
 - **The end of a session.** `SessionEnd` releases the session's reservations; the TTL ends those of a session that
   did not end cleanly.
-
-The include goes into the environment of the session (use the absolute path of your home: T3 does not expand `~` or
-`$HOME`); with conventional-commits as well, see [its README](../conventional-commits/README.md#what-the-host-needs):
-
-```sh
-GIT_CONFIG_COUNT=1
-GIT_CONFIG_KEY_0=include.path
-GIT_CONFIG_VALUE_0=/home/<you>/.local/state/kvokka-harness-plugins/agent-mail/gitconfig
-```
-
-Set it only where the plugin is enabled: a session without a mail name has its commits refused.

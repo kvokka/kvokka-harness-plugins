@@ -1,10 +1,12 @@
 #!/bin/sh
-# agent-mail: the refusals that need no server always; with mcp-agent-mail on the PATH, two sessions of one repository
-# (one in a worktree) against a real server: their identities, a refused commit of a held path, and the release.
+# agent-mail: the refusals that need no server always, and with prek on the PATH the hook of .pre-commit-hooks.yaml
+# through prek; with mcp-agent-mail on the PATH, two sessions of one repository (one in a worktree) against a real
+# server: their identities, a refused commit of a held path, and the release.
 set -eu
-plugin=$(cd "$(dirname "$0")/.." && pwd)/plugins/agent-mail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+plugin=$repo/plugins/agent-mail
 tmp=$(mktemp -d)
-export HOME="$tmp/home" XDG_CONFIG_HOME="$tmp/home/.config" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export HOME="$tmp/home" PREK_HOME="$tmp/prek" XDG_CONFIG_HOME="$tmp/home/.config" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.org GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.org
 export AGENT_MAIL_PORT=$((20000 + $$ % 20000))
 unset T3CODE_THREAD_ID CLAUDE_CODE_SESSION_ID CODEX_THREAD_ID AGENT_MAIL_HOST AGENT_MAIL_TOKEN
@@ -18,20 +20,23 @@ git init -q "$tmp/repo"
 cd "$tmp/repo"
 git commit -q --allow-empty -m 'chore: start'
 git worktree add -q "$tmp/wt" 2>/dev/null
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=include.path GIT_CONFIG_VALUE_0="$state/gitconfig"
+# The repository's pre-commit hook runs the check, as the hook of .pre-commit-hooks.yaml does.
+mkdir "$tmp/hooks"
+printf '#!/bin/sh\nexec "%s/bin/agent-mail" pre-commit\n' "$plugin" >"$tmp/hooks/pre-commit"
+chmod +x "$tmp/hooks/pre-commit"
+git config core.hooksPath "$tmp/hooks"
 
 # A non-loopback host without a token: no server.
 out=$(AGENT_MAIL_HOST=0.0.0.0 "$plugin/bin/agent-mail-up" 2>&1) && fail "started without a token"
 case $out in *"not loopback"*) ;; *) fail "no reason: $out" ;; esac
 
-# Without mcp-agent-mail: the session hears why, the gitconfig is in place, and its commits are refused.
+# Without mcp-agent-mail: the session hears why, and its commits are refused.
 bin=$tmp/bin
 mkdir "$bin"
 for tool in jq git curl flock setsid; do ln -s "$(command -v "$tool")" "$bin/$tool"; done
 out=$(PATH="$bin:/usr/bin:/bin" start lone "$tmp/repo")
-case $out in *"Agent Mail is unavailable"*"mcp-agent-mail is not on the PATH"*) ;; *) fail "no reason: $out" ;; esac
-[ "$(git config --file "$state/gitconfig" hook.kvokka-agent-mail.event)" = pre-commit ] || fail "no gitconfig"
-git hook list pre-commit | grep -Fxq kvokka-agent-mail || fail "git does not list the hook"
+case $out in *"Agent Mail is unavailable"*"mise use -g github:Dicklesworthstone/mcp_agent_mail_rust"*) ;;
+*) fail "no reason: $out" ;; esac
 echo a >a.txt
 git add a.txt
 git commit -q -m 'feat: outside a session'
@@ -39,6 +44,37 @@ echo b >a.txt
 git add a.txt
 if CLAUDE_CODE_SESSION_ID=lone git commit -q -m 'feat: no mail name' 2>/dev/null; then fail "committed without a name"; fi
 git reset -q --hard
+
+# Without jq the check names the command that installs it.
+nojq=$tmp/nojq
+mkdir "$nojq"
+ln -s "$(command -v git)" "$nojq/git"
+out=$(CLAUDE_CODE_SESSION_ID=lone PATH="$nojq:/usr/bin:/bin" "$plugin/bin/agent-mail" pre-commit 2>&1) && fail "passed without jq"
+case $out in *"mise use -g jq"*) ;; *) [ -x /usr/bin/jq ] || fail "no reason: $out" ;; esac
+
+# Through prek: the hook of this repository's .pre-commit-hooks.yaml, from a copy of the working tree.
+if command -v prek >/dev/null; then
+  git init -q "$tmp/hook-repo"
+  mkdir -p "$tmp/hook-repo/plugins"
+  cp "$repo/.pre-commit-hooks.yaml" "$tmp/hook-repo/"
+  cp -R "$plugin" "$tmp/hook-repo/plugins/"
+  git -C "$tmp/hook-repo" add -A
+  git -C "$tmp/hook-repo" commit -q -m 'chore: the hooks'
+  git init -q "$tmp/prek-work"
+  cd "$tmp/prek-work"
+  printf 'repos:\n  - repo: %s\n    rev: %s\n    hooks:\n      - id: agent-mail-reservations\n' \
+    "$tmp/hook-repo" "$(git -C "$tmp/hook-repo" rev-parse HEAD)" >.pre-commit-config.yaml
+  prek install -q >/dev/null
+  git add -A
+  git commit -q -m 'feat: outside a session' >/dev/null 2>&1
+  echo a >a.txt
+  git add a.txt
+  if out=$(CODEX_THREAD_ID=lone git commit -q -m 'feat: no mail name' 2>&1); then fail "prek: committed without a name"; fi
+  case $out in *"no Agent Mail name"*) ;; *) fail "prek: no reason: $out" ;; esac
+  cd "$tmp/repo"
+else
+  echo "prek is not on the PATH: the check through prek is skipped"
+fi
 
 if ! command -v mcp-agent-mail >/dev/null; then
   echo "mcp-agent-mail is not on the PATH: the server part is skipped"

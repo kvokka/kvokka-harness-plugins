@@ -10,6 +10,8 @@ jobs:
     env:
       AGENT_MAIL_ASSET: mcp-agent-mail-x86_64-unknown-linux-gnu.tar.xz
       AGENT_MAIL_SHA256: 962a34d0aba41d08432e6873cb8bf96c7a547bfad7ac273c7dabc499639b86f4
+      PREK_ASSET: prek-x86_64-unknown-linux-gnu.tar.gz
+      PREK_SHA256: 5470e4aa0fc0ad9d3de7dfaf088fb746d59c2eda3b173c06418e7c8861a520eb
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -yq jq shellcheck
@@ -20,5 +22,10 @@ jobs:
           mkdir -p "$HOME/.local/bin"
           tar -xJf "$AGENT_MAIL_ASSET" -C "$HOME/.local/bin" mcp-agent-mail
           echo "$HOME/.local/bin" >>"$GITHUB_PATH"
-      - run: git --version && mcp-agent-mail --version
+      - name: Install prek 0.5.5
+        run: |
+          curl -fsSLO "https://github.com/j178/prek/releases/download/v0.5.5/$PREK_ASSET"
+          echo "$PREK_SHA256  $PREK_ASSET" | sha256sum -c -
+          tar -xzf "$PREK_ASSET" -C "$HOME/.local/bin" --strip-components=1 prek-x86_64-unknown-linux-gnu/prek
+      - run: git --version && mcp-agent-mail --version && prek --version
       - run: tests/run
