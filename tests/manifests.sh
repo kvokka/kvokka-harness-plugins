@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 fail() { echo "$*"; exit 1; }
-dirs=$(cd plugins && ls | sort)
+dirs=$(find plugins -mindepth 1 -maxdepth 1 -type d | sed 's|^plugins/||' | sort)
 [ "$(jq -r '.plugins[] | "\(.name) \(.source)"' .claude-plugin/marketplace.json | sort)" = \
   "$(for p in $dirs; do echo "$p ./plugins/$p"; done)" ] || fail "the Claude marketplace does not list plugins/*"
 [ "$(jq -r '.plugins[] | "\(.name) \(.source.path)"' .agents/plugins/marketplace.json | sort)" = \

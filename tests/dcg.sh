@@ -10,7 +10,10 @@ out=$(printf '%s' "$input" | PATH="$bin:/usr/bin:/bin" "$guard" 2>&1) && exit 1
 case $out in *"not on the PATH"*) ;; *) echo "no reason: $out"; exit 1 ;; esac
 
 # With dcg: it gets the input on stdin and its answer is the hook's.
-printf '#!/bin/sh\necho "dcg saw: $(cat)"\n' >"$bin/dcg"
+cat >"$bin/dcg" <<'DCG'
+#!/bin/sh
+echo "dcg saw: $(cat)"
+DCG
 chmod +x "$bin/dcg"
 out=$(printf '%s' "$input" | PATH="$bin:/usr/bin:/bin" "$guard")
 [ "$out" = "dcg saw: $input" ] || { echo "unexpected: $out"; exit 1; }
