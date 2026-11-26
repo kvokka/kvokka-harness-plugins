@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 
+sys.dont_write_bytecode = True
 WRAPPER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bin", "codex-trusted")
 loader = importlib.machinery.SourceFileLoader("codex_trusted", WRAPPER)
 spec = importlib.util.spec_from_loader("codex_trusted", loader)
