@@ -87,7 +87,8 @@ touch "$tmp/empty/new.txt"
 claude_usage 2100 e
 jq -nc --arg t "$tmp/e.jsonl" --arg cwd "$tmp/empty" \
   '{hook_event_name: "PostToolUse", session_id: "e", transcript_path: $t, cwd: $cwd}' | "$budget" >/dev/null
-grep -q 'no commits yet' "$tmp/data/e.md" && grep -q 'new.txt' "$tmp/data/e.md" || fail "no-commit dump: $(cat "$tmp/data/e.md")"
+grep -q 'no commits yet' "$tmp/data/e.md" || fail "no-commit dump: $(cat "$tmp/data/e.md")"
+grep -q 'new.txt' "$tmp/data/e.md" || fail "no status in the no-commit dump"
 
 # Without jq the hook names the command that installs it.
 out=$(echo '{}' | PATH="$tmp/nothing" /bin/sh "$budget" 2>&1) && fail "ran without jq"
