@@ -55,7 +55,7 @@ mkdir "$nojq"
 # Every tool of the system but jq: on some hosts (CI runners) jq sits in /usr/bin beside the rest.
 for f in /usr/bin/* /bin/* "$(command -v git)"; do
     n=${f##*/}
-    [ "$n" = jq ] || [ -e "$nojq/$n" ] || ln -s "$f" "$nojq/$n"
+    [ "$n" = jq ] || [ -e "$nojq/$n" ] || [ -L "$nojq/$n" ] || ln -s "$f" "$nojq/$n"
 done
 out=$(CLAUDE_CODE_SESSION_ID=lone PATH="$nojq" "$plugin/bin/agent-mail" pre-commit 2>&1) && fail "passed without jq"
 case $out in *"mise use -g jq"*) ;; *) [ -x /usr/bin/jq ] || fail "no reason: $out" ;; esac
