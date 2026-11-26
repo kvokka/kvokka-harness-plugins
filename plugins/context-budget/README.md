@@ -4,12 +4,11 @@ Bounds the context of a Claude or Codex session. Past a soft limit the agent is 
 the step at hand, commit, start nothing new, call no subagents, and give its summary (what is done, what did not
 work, what is started and not finished) as its final answer; a subagent returns that summary to its caller. Past a
 hard limit the session is stopped and the state of its work is written to a file the stop names. With the harness
-settings below, the context is never compacted.
+settings below, the session stops before the harness compacts its context.
 
 ## Install
 
-Claude: `/plugin install context-budget --marketplace kvokka/kvokka-harness-plugins`. Codex and T3: see the
-[root README](../../README.md).
+Install and enable the plugin as the [root README](../../README.md#install) says.
 
 ## Settings
 
@@ -19,12 +18,14 @@ Claude: `/plugin install context-budget --marketplace kvokka/kvokka-harness-plug
 | `CONTEXT_BUDGET_HARD` | `420000` | tokens of context past which the session is stopped |
 | `CONTEXT_BUDGET_STEP` | `30000` | tokens the context grows past the soft limit between two notes |
 
-When the harness compacts is its own setting, which a plugin cannot set; give it in the session's launch arguments,
-at or past the hard limit, so that the session stops instead of compacting:
+When the harness compacts is its own setting, which a plugin cannot set. Set it past the hard limit, at about 600000
+tokens, so that the session stops before it compacts:
 
-- Claude: `--settings '{"autoCompactWindow":1000000}'`. Claude then compacts at about 967k tokens, past the hard
-  limit.
-- Codex: `-c model_auto_compact_token_limit=420000`, the hard limit.
+- Claude: `autoCompactWindow` 633000 in its settings, or `claude --settings '{"autoCompactWindow":633000}'`. Claude
+  compacts at the window less 33000 tokens, and caps the window at the model's own: on a model with a 200k window it
+  compacts at about 167k, below the default limits: give such a session smaller ones.
+- Codex: `model_auto_compact_token_limit = 600000` in `config.toml`, or `codex -c
+  model_auto_compact_token_limit=600000`.
 
 An attempt to compact past the hard limit stops the session; one below it (Claude's `/compact`, or a compaction
 setting below the hard limit) goes ahead, and the plugin says nothing.
@@ -53,8 +54,8 @@ limit only: the stop is a safety net a session that wraps up in time never meets
 ## On Codex
 
 - **The budget is bounded by the model's window.** Codex compacts at 90% of the window at most, whatever the limit
-  says. The defaults do not fit a window of 272000 tokens: give such an instance smaller limits, e.g.
-  `CONTEXT_BUDGET_SOFT=180000`, `CONTEXT_BUDGET_HARD=240000` and `-c model_auto_compact_token_limit=240000`.
+  says. The defaults do not fit a window of 272000 tokens: give such a session smaller limits, e.g.
+  `CONTEXT_BUDGET_SOFT=180000` and `CONTEXT_BUDGET_HARD=240000`.
 - **A tool hook does not end a turn.** Codex's `PreToolUse` takes only the denial of one call, so past hard every call
   is denied, and a `PostToolUse` answer of `continue: false` replaces the tool's result with the reason.
 - **The measure is one model request late**, since Codex writes the usage of a request after its tools ran; and it
@@ -62,4 +63,5 @@ limit only: the stop is a safety net a session that wraps up in time never meets
 
 ## What the host needs
 
-`jq` and `git` on the `PATH` of the hooks.
+- `jq`: `mise use -g jq`.
+- `git`, from the system's package manager, for the dump of a stopped session.

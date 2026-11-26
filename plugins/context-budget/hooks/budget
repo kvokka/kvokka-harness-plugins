@@ -2,6 +2,7 @@
 # The hook of the context-budget plugin (README.md) for Claude and Codex, on every event it is attached to; the input
 # is on stdin. The limits come from CONTEXT_BUDGET_SOFT, CONTEXT_BUDGET_HARD and CONTEXT_BUDGET_STEP.
 set -eu
+command -v jq >/dev/null 2>&1 || { echo "context-budget: jq is not on the PATH; install it: mise use -g jq" >&2; exit 1; }
 soft=${CONTEXT_BUDGET_SOFT:-300000} hard=${CONTEXT_BUDGET_HARD:-420000} step=${CONTEXT_BUDGET_STEP:-30000}
 data=${CLAUDE_PLUGIN_DATA:?context-budget: CLAUDE_PLUGIN_DATA is not set; run the hook from the plugin}
 mkdir -p "$data"

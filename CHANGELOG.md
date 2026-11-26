@@ -41,6 +41,12 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## context-budget
 
+### 0.1.1
+
+- A missing `jq` is reported with `mise use -g jq`.
+- The README sets the harness's compaction at about 600000 tokens: Claude `autoCompactWindow` 633000, Codex
+  `model_auto_compact_token_limit` 600000.
+
 ### 0.1.0
 
 - Bound the context of a Claude or Codex session: a wrap-up note past `CONTEXT_BUDGET_SOFT`, no subagents past it,

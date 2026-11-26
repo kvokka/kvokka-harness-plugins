@@ -1,5 +1,6 @@
 #!/bin/sh
-# context-budget: the budget note, the denied subagent, the stop with its dump, on Claude and Codex inputs.
+# context-budget: the budget note, the denied subagent, the stop with its dump, on Claude and Codex inputs; the
+# reason when jq is missing.
 set -eu
 budget=$(cd "$(dirname "$0")/.." && pwd)/plugins/context-budget/hooks/budget
 tmp=$(mktemp -d)
@@ -79,3 +80,7 @@ printf '%s' "$out" | jq -e '.continue == false and (has("decision") | not)' >/de
 out=$(hook PreToolUse x '{"turn_id":"t1","tool_name":"Bash"}')
 printf '%s' "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny" and (has("continue") | not)' >/dev/null ||
   fail "codex after the stop: $out"
+
+# Without jq the hook names the command that installs it.
+out=$(echo '{}' | PATH="$tmp/nothing" /bin/sh "$budget" 2>&1) && fail "ran without jq"
+case $out in *"mise use -g jq"*) ;; *) fail "no reason: $out" ;; esac
