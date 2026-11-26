@@ -39,7 +39,7 @@ key() {
   (cd "$dir" && pwd -P)
 }
 
-# The file that keeps the mail name of the session <id> (the T3 thread, else the harness's session).
+# The file that keeps the mail name of the harness session <id>.
 binding() { printf '%s/agents/%s.json' "$state" "$(printf '%s' "$1" | tr -c '[:alnum:]._-' '-')"; }
 
 # Writes stdin to a file in one step, so a reader never sees half of it.
@@ -54,7 +54,7 @@ session_start() {
   input=$(cat)
   cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
   [ -z "$cwd" ] || cd "$cwd"
-  id=${T3CODE_THREAD_ID:-$(printf '%s' "$input" | jq -r '.session_id // empty')}
+  id=$(printf '%s' "$input" | jq -r '.session_id // empty')
   [ -n "$id" ] || die "the hook input names no session"
   mkdir -p "$state/agents"
   file=$(binding "$id")
@@ -97,14 +97,15 @@ session_end() {
   # Codex gives a SessionEnd hook 1 s by default, and both harnesses cap it at a few seconds.
   max_time=1
   need_jq
-  id=${T3CODE_THREAD_ID:-$(jq -r '.session_id // empty')}
+  id=$(jq -r '.session_id // empty')
   file=$(binding "$id")
   [ -f "$file" ] || exit 0
   call release_file_reservations "$(jq -c '{project_key: .key, agent_name: .name}' "$file")" >/dev/null
 }
 
 pre_commit() {
-  id=${T3CODE_THREAD_ID:-${CLAUDE_CODE_SESSION_ID:-${CODEX_THREAD_ID:-}}}
+  # The harness session the commit runs in: both harnesses export its id to their commands.
+  id=${CLAUDE_CODE_SESSION_ID:-${CODEX_THREAD_ID:-}}
   # A commit outside an agent's session is not checked.
   [ -n "$id" ] || exit 0
   need_jq

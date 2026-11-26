@@ -84,15 +84,16 @@ add an MCP entry of your own with that address as above.
   Unless the user's Agent Mail config chooses a tool filter, the server offers the 12 tools of the protocol below. To
   stop it: `pkill -f 'agent-mail-up supervise'; pkill -f 'mcp-agent-mail serve'`.
 - **A session's identity.** The session registers with `macro_start_session`. Its mail name is kept per harness
-  session; under T3 Code, per T3 thread (`T3CODE_THREAD_ID`), so a later session of the thread is the same agent. The
+  session (the hook input's `session_id`), so a resumed session is the same agent, and each session started from
+  inside another one (a nested `claude -p` or `codex exec`) is an agent of its own. The
   project key is the canonical common Git directory (`git rev-parse --git-common-dir`), shared by all worktrees of a
   repository, or the directory outside Git; each project has one thread, named after the repository. The session's
   context gets its mail name, project key, thread and inbox, and the protocol of [prompt.md](prompt.md). When the
   server is not up, the context says why, the session is kept with no name, and the commit check refuses its
   commits.
 - **The commit check.** The hook `agent-mail-reservations` of [.pre-commit-hooks.yaml](../../.pre-commit-hooks.yaml)
-  runs `bin/agent-mail pre-commit`. A commit by an agent session (`T3CODE_THREAD_ID`, `CLAUDE_CODE_SESSION_ID` or
-  `CODEX_THREAD_ID` set) in the repository it registered in sends its staged paths, both sides of a rename, to
+  runs `bin/agent-mail pre-commit`. A commit by an agent session (`CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID`
+  set, the harness's session id) in the repository it registered in sends its staged paths, both sides of a rename, to
   `check_file_reservation_conflicts`; the session's mail name is read from
   `~/.local/state/kvokka-harness-plugins/agent-mail/`. A path another agent holds exclusively refuses the
   commit, naming the path and its holder; a check that cannot be made refuses it too, and so does a session kept

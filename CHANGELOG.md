@@ -73,6 +73,8 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
   `.pre-commit-hooks.yaml`, installed per repository, in place of a Git include in the session's environment.
   It lets the commits of an agent session without the plugin through with a warning, and refuses those of a
   session whose registration failed: the session start now keeps such a session with no name.
+- A session's mail name is kept per harness session (`session_id`; `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID` in
+  the commit check), no longer per inherited `T3CODE_THREAD_ID`, so nested sessions are agents of their own.
 - A missing `jq` or `mcp-agent-mail` is reported with the `mise use -g` command that installs it.
 
 ### 0.1.0

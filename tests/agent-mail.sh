@@ -9,7 +9,7 @@ tmp=$(mktemp -d)
 export HOME="$tmp/home" PREK_HOME="$tmp/prek" XDG_CONFIG_HOME="$tmp/home/.config" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.org GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.org
 export AGENT_MAIL_PORT=$((20000 + $$ % 20000))
-unset T3CODE_THREAD_ID CLAUDE_CODE_SESSION_ID CODEX_THREAD_ID AGENT_MAIL_HOST AGENT_MAIL_TOKEN
+unset CLAUDE_CODE_SESSION_ID CODEX_THREAD_ID AGENT_MAIL_HOST AGENT_MAIL_TOKEN
 state=$HOME/.local/state/kvokka-harness-plugins/agent-mail
 mkdir -p "$HOME"
 fail() { echo "$*"; exit 1; }
@@ -91,17 +91,19 @@ fi
 stop() { pgid=$(pgrep -f "supervisor-$AGENT_MAIL_PORT.lock" || true); [ -z "$pgid" ] || kill -- "-$pgid"; }
 trap stop EXIT
 
-# Two sessions, one in the repository and one in its worktree: one project, two names.
+# Two sessions, one in the repository and one in its worktree, both of one T3 thread: one project, two names.
 ctx_a=$(T3CODE_THREAD_ID=thread-a start sa "$tmp/repo")
-ctx_b=$(start sb "$tmp/wt")
+ctx_b=$(T3CODE_THREAD_ID=thread-a start sb "$tmp/wt")
 key=$(cd "$tmp/repo/.git" && pwd -P)
-name_a=$(jq -r .name "$state/agents/thread-a.json")
+name_a=$(jq -r .name "$state/agents/sa.json")
 name_b=$(jq -r .name "$state/agents/sb.json")
 [ -n "$name_a" ] && [ -n "$name_b" ] && [ "$name_a" != "$name_b" ] || fail "names: $name_a $name_b"
 case $ctx_a in *"you are \`$name_a\` in the project \`$key\`"*"thread_id"*"fetch_inbox"*) ;; *) fail "context: $ctx_a" ;; esac
 case $ctx_b in *"\`$key\`"*) ;; *) fail "the worktree has another project: $ctx_b" ;; esac
-[ "$(T3CODE_THREAD_ID=thread-a start other "$tmp/repo" >/dev/null && jq -r .name "$state/agents/thread-a.json")" = "$name_a" ] ||
-  fail "a thread's second session has another name"
+# A session resumed under the same id is the same agent, whatever T3 thread it inherits.
+[ "$(T3CODE_THREAD_ID=thread-a start sa "$tmp/repo" >/dev/null && jq -r .name "$state/agents/sa.json")" = "$name_a" ] ||
+  fail "a resumed session has another name"
+[ ! -e "$state/agents/thread-a.json" ] || fail "T3CODE_THREAD_ID named the binding"
 
 # A holds a.txt: B's commit of it is refused, of another path it goes; A's own commit goes.
 jq -nc --arg k "$key" --arg n "$name_a" '{jsonrpc: "2.0", id: 1, method: "tools/call", params: {name: "file_reservation_paths",
@@ -122,10 +124,10 @@ CODEX_THREAD_ID=sb git commit -q -m 'feat: add b.txt'
 cd "$tmp/repo"
 echo c >a.txt
 git add a.txt
-T3CODE_THREAD_ID=thread-a git commit -q -m 'fix: change a.txt'
+CLAUDE_CODE_SESSION_ID=sa git commit -q -m 'fix: change a.txt'
 
 # The end of A's session releases its reservations.
-echo '{"hook_event_name":"SessionEnd","session_id":"sa"}' | T3CODE_THREAD_ID=thread-a "$plugin/bin/agent-mail" session-end
+echo '{"hook_event_name":"SessionEnd","session_id":"sa"}' | "$plugin/bin/agent-mail" session-end
 cd "$tmp/wt"
 git add a.txt
 CODEX_THREAD_ID=sb git commit -q -m 'fix: take a.txt'

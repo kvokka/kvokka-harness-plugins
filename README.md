@@ -152,8 +152,7 @@ A Codex instance with a `CODEX_HOME` of its own (`homePath`), where its plugins 
 }
 ```
 
-Under T3, agent-mail keeps a session's mail name per T3 thread, and the `agents` coder consults the expert through
-T3's `delegate_task`; their READMEs say more.
+Under T3, the `agents` coder consults the expert through T3's `delegate_task`; its README says more.
 
 ## Development
 
