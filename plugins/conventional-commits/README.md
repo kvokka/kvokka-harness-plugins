@@ -19,8 +19,9 @@ repos:
         stages: [commit-msg]
 ```
 
-and install its Git hook: `prek install --hook-type commit-msg`. prek refuses while `core.hooksPath` is set in the
-user's or the system's Git config, and says how to go on.
+and install its Git hook: `prek install --hook-type commit-msg`. With `core.hooksPath` set in the user's or the
+system's Git config, Git skips the repository's hooks and `prek install` refuses; set it for the repository first:
+`git config --local core.hooksPath .git/hooks`.
 
 A Codex session with `sandbox_mode = "workspace-write"` runs `git commit`, and so prek, inside its sandbox. prek
 writes its log and a lock in its home (`~/.cache/prek`, or `PREK_HOME`) at every run, so a home the sandbox cannot
