@@ -9,6 +9,11 @@
       "name": "dcg",
       "source": "./plugins/dcg",
       "description": "Every shell command of a session goes through dcg (destructive_command_guard) before it runs."
+    },
+    {
+      "name": "shell-tools",
+      "source": "./plugins/shell-tools",
+      "description": "Tells each agent and subagent to search code with rg and ast-grep and to read JSON with toon."
     }
   ]
 }

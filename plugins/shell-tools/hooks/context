@@ -1,0 +1,5 @@
+#!/bin/sh
+# SessionStart and SubagentStart hook of Claude and Codex: prompt.md joins the agent's context.
+set -eu
+event=$(jq -r .hook_event_name)
+jq -Rsc --arg e "$event" '{hookSpecificOutput: {hookEventName: $e, additionalContext: .}}' "$(dirname "$0")/../prompt.md"
