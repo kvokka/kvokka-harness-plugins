@@ -75,12 +75,12 @@ add ...`, then `CODEX_HOME=~/.codex-coder codex`).
 Codex runs a plugin's hook only once the user trusts it (`/hooks` in the TUI), and any change of the plugin, an
 update included, makes it untrusted again; Codex then skips the hook without a word. Until Codex trusts plugin hooks
 on its own, run Codex through [`bin/codex-trusted`](bin/codex-trusted). Through `codex app-server` in its
-`CODEX_HOME` it fetches a configured marketplace that does not load, installs each enabled plugin that is not
-installed, and trusts their hooks, for the marketplaces of `CODEX_TRUSTED_MARKETPLACES` (names split by spaces or
-commas, default `kvokka-harness-plugins`; add another, e.g. `ponytail`, for its plugins too). Then it checks again
-and runs the real `codex` (the first one on `PATH` that is not the wrapper, or `CODEX_TRUSTED_REAL`) with the same
-arguments. When a marketplace, plugin or hook is still not in place, Codex is not started: the wrapper names the
-cause on stderr and exits 1. It needs `python3`:
+`CODEX_HOME` it trusts the hooks of the installed, enabled plugins of the marketplaces in
+`CODEX_TRUSTED_MARKETPLACES` (names split by spaces or commas, default `kvokka-harness-plugins`; add another, e.g.
+`ponytail`, for its plugins too), so an update of such a plugin needs no approval. Then it runs the real `codex` (the
+first one on `PATH` that is not the wrapper, or `CODEX_TRUSTED_REAL`) with the same arguments. A plugin that is not
+installed is left alone. When a hook stays untrusted all the same, Codex is not started: the wrapper names the hooks
+and the cause on stderr and exits 1. It needs `python3`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kvokka/kvokka-harness-plugins/main/bin/codex-trusted \
@@ -131,8 +131,8 @@ A Claude instance. With the plugins installed and disabled at user scope (above)
 }
 ```
 
-A Codex instance with a `CODEX_HOME` of its own (`homePath`), whose `config.toml` names the marketplaces and enables
-the plugins, run through the trust wrapper (`binaryPath`), which installs them:
+A Codex instance with a `CODEX_HOME` of its own (`homePath`), where its plugins are installed and enabled
+(`CODEX_HOME=/home/<you>/.t3/codex-coder codex plugin add ...`), run through the trust wrapper (`binaryPath`):
 
 ```json
 {
