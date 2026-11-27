@@ -1,9 +1,0 @@
-{
-  "name": "agents",
-  "version": "0.2.0",
-  "description": "The expert a coder consults, a native subagent of Claude and a skill for a Codex role; and a note that sends routine work to cheaper models.",
-  "author": {
-    "name": "kvokka"
-  },
-  "license": "MIT"
-}
