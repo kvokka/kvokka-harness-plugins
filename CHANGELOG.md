@@ -88,6 +88,14 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## agents
 
+### 0.2.0
+
+- The expert is a native subagent of Claude, `agents:expert`, with the `expert` skill loaded into its context; a
+  Codex role points at the same skill from `$CODEX_HOME/agents/expert.toml`.
+- Each session gets a note that sends work needing no judgement to a subagent on a cheaper model
+  (`AGENTS_CHEAP_MODELS`).
+- The skills `coder` and `reviewer` are gone: the text of a workflow's roles belongs to the workflow.
+
 ### 0.1.1
 
 - The coder consults the expert through T3's `delegate_task` under T3 Code, and otherwise asks the user to run
@@ -97,3 +105,11 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 - Skills `coder`, `reviewer` and `expert` for Claude and Codex: how each role works, with the output format left to
   the caller.
+
+## cache-warm
+
+### 0.1.0
+
+- Tell each Claude or Codex session and subagent how long its prompt cache lives (`CACHE_WARM_TTL`) and to keep it
+  warm while it waits: no wait longer than the lifetime, long work in the background, and no checks past ten
+  lifetimes.

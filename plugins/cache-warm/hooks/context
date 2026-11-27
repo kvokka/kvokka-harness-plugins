@@ -1,0 +1,14 @@
+#!/bin/sh
+# SessionStart and SubagentStart hook of Claude and Codex: prompt.md joins the agent's context, with the lifetime of
+# the session's prompt cache (CACHE_WARM_TTL, minutes) in it.
+set -eu
+command -v jq >/dev/null 2>&1 || { echo "cache-warm: jq is not on the PATH; install it: mise use -g jq" >&2; exit 1; }
+ttl=${CACHE_WARM_TTL:-5}
+case $ttl in
+  '' | *[!0-9]* | 0 | 1) echo "cache-warm: CACHE_WARM_TTL must be a number of minutes, 2 or more: $ttl" >&2; exit 1 ;;
+esac
+event=$(jq -r .hook_event_name)
+jq -Rsc --arg e "$event" --arg ttl "$ttl" --arg slice "$((ttl - 1))" --arg limit "$((ttl * 10))" \
+  '{hookSpecificOutput: {hookEventName: $e,
+    additionalContext: (gsub("\\{ttl\\}"; $ttl) | gsub("\\{slice\\}"; $slice) | gsub("\\{limit\\}"; $limit))}}' \
+  "$(dirname "$0")/../prompt.md"
