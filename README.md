@@ -73,11 +73,14 @@ Sessions that need another set of plugins get a `CODEX_HOME` of their own (`CODE
 add ...`, then `CODEX_HOME=~/.codex-coder codex`).
 
 Codex runs a plugin's hook only once the user trusts it (`/hooks` in the TUI), and any change of the plugin, an
-update included, makes it untrusted again. Until Codex trusts plugin hooks on its own, run Codex through
-[`bin/codex-trusted`](bin/codex-trusted): it trusts the hooks of this marketplace's enabled plugins in its
-`CODEX_HOME` (through `codex app-server`), then runs the real `codex` (the first one on `PATH` that is not the wrapper,
-or `CODEX_TRUSTED_REAL`) with the same arguments. A failure of the trust step is one line on stderr, and Codex runs
-all the same. It needs `python3`:
+update included, makes it untrusted again; Codex then skips the hook without a word. Until Codex trusts plugin hooks
+on its own, run Codex through [`bin/codex-trusted`](bin/codex-trusted). Through `codex app-server` in its
+`CODEX_HOME` it trusts the hooks of the installed, enabled plugins of the marketplaces in
+`CODEX_TRUSTED_MARKETPLACES` (names split by spaces or commas, default `kvokka-harness-plugins`; add another, e.g.
+`ponytail`, for its plugins too), so an update of such a plugin needs no approval. Then it runs the real `codex` (the
+first one on `PATH` that is not the wrapper, or `CODEX_TRUSTED_REAL`) with the same arguments. A plugin that is not
+installed is left alone. When a hook stays untrusted all the same, Codex is not started: the wrapper names the hooks
+and the cause on stderr and exits 1. It needs `python3`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kvokka/kvokka-harness-plugins/main/bin/codex-trusted \
