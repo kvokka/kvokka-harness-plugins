@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
-"""Runs codex after trusting the hooks of the kvokka-harness-plugins plugins in its CODEX_HOME.
+"""Runs codex once every hook of the plugins it enables from the chosen marketplaces will run.
 
-Temporary: delete it once Codex or T3 trusts plugin hooks on their own. Codex skips a plugin hook until the user
-trusts it, and any change to the plugin makes it untrusted again. This wrapper asks `codex app-server` for the hooks,
-writes `trusted_hash = currentHash` to the user config for each enabled, unmanaged hook of a plugin of this
-marketplace that is not trusted, then replaces itself with the real codex and the same arguments. Any failure of the
-trust step is one line on stderr, and codex runs all the same.
+Temporary: delete it once Codex or T3 trusts plugin hooks on their own. Codex skips a plugin hook, without a word,
+while the hook is not trusted, and any change to the plugin (an update included) makes it untrusted again; a plugin
+enabled in the config but not installed has no hooks at all. Through `codex app-server` this wrapper, for the
+marketplaces of CODEX_TRUSTED_MARKETPLACES (default: kvokka-harness-plugins):
+
+1. fetches a configured marketplace that does not load, and installs each enabled plugin that is not installed;
+2. writes `trusted_hash = currentHash` to the user config for each enabled, unmanaged hook of their plugins that is
+   not trusted;
+3. checks the result again, and replaces itself with the real codex and the same arguments.
+
+When the check still finds a marketplace, plugin or hook that will not run, codex is not started: the wrapper says
+what is wrong on stderr and exits 1, so a session never runs without its hooks unnoticed.
 """
 
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
 import sys
 
-MARKETPLACE = "@kvokka-harness-plugins"
-TIMEOUT = 30
+TIMEOUT = 120  # a plugin install clones its repository
+
+
+def marketplaces():
+    return set(re.split(r"[\s,]+", os.environ.get("CODEX_TRUSTED_MARKETPLACES", "kvokka-harness-plugins").strip()))
 
 
 def real_codex():
@@ -31,8 +42,8 @@ def real_codex():
     raise SystemExit("codex-trusted: no codex on PATH but this wrapper; set CODEX_TRUSTED_REAL")
 
 
-def edits(hooks):
-    """The config edits that trust the hooks of this marketplace's plugins that are not trusted yet."""
+def edits(hooks, chosen):
+    """The config edits that trust the hooks of the chosen marketplaces' plugins that are not trusted yet."""
     return [
         {
             "keyPath": "hooks.state.%s.trusted_hash" % json.dumps(h["key"]),
@@ -41,13 +52,33 @@ def edits(hooks):
         }
         for h in hooks
         if h.get("source") == "plugin"
-        and str(h.get("pluginId", "")).endswith(MARKETPLACE)
+        and str(h.get("pluginId", "")).rpartition("@")[2] in chosen
         and h.get("enabled") is True
         and h.get("isManaged") is False
         and h.get("trustStatus") != "trusted"
         and h.get("key")
         and h.get("currentHash")
     ]
+
+
+def missing(listing, chosen):
+    """The chosen marketplaces that do not load."""
+    return sorted(chosen - {m["name"] for m in listing.get("marketplaces", [])})
+
+
+def uninstalled(listing, chosen):
+    """(marketplace, plugin) for each enabled plugin of the chosen marketplaces that is not installed."""
+    return [
+        (m, p)
+        for m in listing.get("marketplaces", [])
+        if m["name"] in chosen
+        for p in m.get("plugins", [])
+        if p.get("enabled") and not p.get("installed")
+    ]
+
+
+def hooks_of(listing):
+    return [h for group in listing["data"] for h in group.get("hooks", [])]
 
 
 def user_layer(config):
@@ -58,7 +89,8 @@ def user_layer(config):
     raise RuntimeError("no user config layer in CODEX_HOME")
 
 
-def trust(codex):
+def trust(codex, chosen):
+    """Makes the hooks of the chosen marketplaces run; returns what it did, or raises with what still will not run."""
     proc = subprocess.Popen(
         [codex, "app-server", "--listen", "stdio://"],
         stdin=subprocess.PIPE,
@@ -67,6 +99,7 @@ def trust(codex):
         text=True,
     )
     ids = iter(range(1, 1000))
+    done, errors = [], []
 
     def call(method, params):
         i = next(ids)
@@ -80,17 +113,36 @@ def trust(codex):
                 return msg["result"]
         raise RuntimeError("codex app-server closed during %s" % method)
 
+    def attempt(what, method, params):
+        # A step that fails is not fatal by itself: another session may have done it, so the check decides.
+        try:
+            call(method, params)
+            done.append(what)
+        except RuntimeError as e:
+            errors.append(str(e))
+
     try:
         call("initialize", {"clientInfo": {"name": "codex-trusted", "version": "0"},
                             "capabilities": {"experimentalApi": True}})
+        for name in missing(call("plugin/list", {}), chosen):
+            attempt("fetched marketplace " + name, "marketplace/upgrade", {"marketplaceName": name})
+        for m, p in uninstalled(call("plugin/list", {}), chosen):
+            attempt("installed " + p["id"], "plugin/install", {"pluginName": p["name"], "marketplacePath": m["path"]})
         # The version before the listing: a change of the config in between makes the write fail, not overwrite it.
         file, version = user_layer(call("config/read", {"includeLayers": True}))
-        listing = call("hooks/list", {})
-        todo = edits([h for group in listing["data"] for h in group.get("hooks", [])])
+        todo = edits(hooks_of(call("hooks/list", {})), chosen)
         if todo:
-            call("config/batchWrite", {"filePath": file, "expectedVersion": version,
-                                       "reloadUserConfig": True, "edits": todo})
-            print("codex-trusted: trusted %d plugin hook(s)" % len(todo), file=sys.stderr)
+            attempt("trusted %d hook(s)" % len(todo), "config/batchWrite",
+                    {"filePath": file, "expectedVersion": version, "reloadUserConfig": True, "edits": todo})
+
+        listing = call("plugin/list", {})
+        left = ["marketplace %s does not load" % n for n in missing(listing, chosen)]
+        left += ["plugin %s is not installed" % p["id"] for _, p in uninstalled(listing, chosen)]
+        left += ["hook %s is not trusted" % e["keyPath"].split('"')[1]
+                 for e in edits(hooks_of(call("hooks/list", {})), chosen)]
+        if left:
+            raise RuntimeError("; ".join(left + errors))
+        return done
     finally:
         proc.kill()
         proc.wait()
@@ -100,16 +152,22 @@ def main():
     codex = real_codex()
 
     def timeout(*_):
-        raise TimeoutError("no answer in %d s" % TIMEOUT)
+        raise TimeoutError("no answer from codex app-server in %d s" % TIMEOUT)
 
     signal.signal(signal.SIGALRM, timeout)
     signal.alarm(TIMEOUT)
     try:
-        trust(codex)
-    except Exception as e:  # noqa: BLE001 - any failure leaves codex to run untouched
-        print("codex-trusted: hooks not trusted: %s" % e, file=sys.stderr)
+        done = trust(codex, marketplaces())
+    except Exception as e:  # noqa: BLE001 - whatever failed, the session must not start without its hooks
+        home = os.environ.get("CODEX_HOME", "~/.codex")
+        print("codex-trusted: codex is not started, its plugin hooks would not run: %s\n"
+              "codex-trusted: fix the cause, or trust the hooks by hand: CODEX_HOME=%s %s, then /hooks"
+              % (e, home, codex), file=sys.stderr)
+        sys.exit(1)
     finally:
         signal.alarm(0)
+    if done:
+        print("codex-trusted: " + ", ".join(done), file=sys.stderr)
     os.execvp(codex, [codex] + sys.argv[1:])
 
 

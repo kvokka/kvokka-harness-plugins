@@ -73,11 +73,14 @@ Sessions that need another set of plugins get a `CODEX_HOME` of their own (`CODE
 add ...`, then `CODEX_HOME=~/.codex-coder codex`).
 
 Codex runs a plugin's hook only once the user trusts it (`/hooks` in the TUI), and any change of the plugin, an
-update included, makes it untrusted again. Until Codex trusts plugin hooks on its own, run Codex through
-[`bin/codex-trusted`](bin/codex-trusted): it trusts the hooks of this marketplace's enabled plugins in its
-`CODEX_HOME` (through `codex app-server`), then runs the real `codex` (the first one on `PATH` that is not the wrapper,
-or `CODEX_TRUSTED_REAL`) with the same arguments. A failure of the trust step is one line on stderr, and Codex runs
-all the same. It needs `python3`:
+update included, makes it untrusted again; Codex then skips the hook without a word. Until Codex trusts plugin hooks
+on its own, run Codex through [`bin/codex-trusted`](bin/codex-trusted). Through `codex app-server` in its
+`CODEX_HOME` it fetches a configured marketplace that does not load, installs each enabled plugin that is not
+installed, and trusts their hooks, for the marketplaces of `CODEX_TRUSTED_MARKETPLACES` (names split by spaces or
+commas, default `kvokka-harness-plugins`; add another, e.g. `ponytail`, for its plugins too). Then it checks again
+and runs the real `codex` (the first one on `PATH` that is not the wrapper, or `CODEX_TRUSTED_REAL`) with the same
+arguments. When a marketplace, plugin or hook is still not in place, Codex is not started: the wrapper names the
+cause on stderr and exits 1. It needs `python3`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kvokka/kvokka-harness-plugins/main/bin/codex-trusted \
@@ -128,8 +131,8 @@ A Claude instance. With the plugins installed and disabled at user scope (above)
 }
 ```
 
-A Codex instance with a `CODEX_HOME` of its own (`homePath`), where its plugins are installed and enabled
-(`CODEX_HOME=/home/<you>/.t3/codex-coder codex plugin add ...`), run through the trust wrapper (`binaryPath`):
+A Codex instance with a `CODEX_HOME` of its own (`homePath`), whose `config.toml` names the marketplaces and enables
+the plugins, run through the trust wrapper (`binaryPath`), which installs them:
 
 ```json
 {
