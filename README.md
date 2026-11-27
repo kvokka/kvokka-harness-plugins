@@ -12,7 +12,6 @@ config. Install them from this marketplace and enable the ones a session needs; 
 | [context-budget](plugins/context-budget/README.md) | past a soft context limit the agent wraps up; past a hard one the session stops, its state in a file |
 | [shell-tools](plugins/shell-tools/README.md) | agents search with `rg` and `ast-grep` and read JSON with `toon` |
 | [agent-mail](plugins/agent-mail/README.md) | agents in one repository coordinate through Agent Mail: a thread, path reservations, and a prek hook that refuses commits of held paths |
-| [agents](plugins/agents/README.md) | the expert a coder consults, native in each harness, and a note that sends routine work to cheaper models |
 | [cache-warm](plugins/cache-warm/README.md) | agents know how long their prompt cache lives and keep it warm while they wait |
 
 Each plugin's README says what the host needs and which environment variables it reads. The versions are in
@@ -25,7 +24,7 @@ a tool fails and names the command.
 
 | Tool | Used by | Install |
 |---|---|---|
-| `jq` | conventional-commits, context-budget, shell-tools, agent-mail, agents, cache-warm | `mise use -g jq` |
+| `jq` | conventional-commits, context-budget, shell-tools, agent-mail, cache-warm | `mise use -g jq` |
 | `dcg` | dcg | `mise use -g github:Dicklesworthstone/destructive_command_guard` |
 | `rg` | shell-tools | `mise use -g ripgrep` |
 | `ast-grep` | shell-tools | `mise use -g ast-grep` |
@@ -154,8 +153,7 @@ A Codex instance with a `CODEX_HOME` of its own (`homePath`), where its plugins 
 ```
 
 The `environment` of an instance is also where the settings that differ per harness go: for a Codex instance
-`CACHE_WARM_TTL` (`30`) of [cache-warm](plugins/cache-warm/README.md#settings) and `AGENTS_CHEAP_MODELS` of
-[agents](plugins/agents/README.md#settings), whose defaults fit Claude.
+`CACHE_WARM_TTL` (`30`) of [cache-warm](plugins/cache-warm/README.md#settings), whose default fits Claude.
 
 ## Development
 

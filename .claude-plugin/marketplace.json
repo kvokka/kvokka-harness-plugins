@@ -31,11 +31,6 @@
       "description": "Agents in one repository coordinate through Agent Mail: a shared thread, path reservations, and refused commits of paths another agent holds."
     },
     {
-      "name": "agents",
-      "source": "./plugins/agents",
-      "description": "The expert a coder consults, a native subagent of Claude and a skill for a Codex role; and a note that sends routine work to cheaper models."
-    },
-    {
       "name": "cache-warm",
       "source": "./plugins/cache-warm",
       "description": "Tells each agent and subagent how long its prompt cache lives and to keep it warm while it waits."

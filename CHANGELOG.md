@@ -88,6 +88,11 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 ## agents
 
+### Removed
+
+- The plugin is gone: a coder's subagents are defined in the coder's own profile, in each
+  harness's native form.
+
 ### 0.2.0
 
 - The expert is a native subagent of Claude, `agents:expert`, with the `expert` skill loaded into its context; a
