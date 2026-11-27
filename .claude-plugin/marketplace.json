@@ -33,7 +33,7 @@
     {
       "name": "agents",
       "source": "./plugins/agents",
-      "description": "Skills for the roles of a coding loop: coder, reviewer and expert; each says how to work, the caller sets the output."
+      "description": "The expert a coder consults, a native subagent of Claude and a skill for a Codex role; and a note that sends routine work to cheaper models."
     },
     {
       "name": "cache-warm",
