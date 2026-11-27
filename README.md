@@ -13,6 +13,7 @@ config. Install them from this marketplace and enable the ones a session needs; 
 | [shell-tools](plugins/shell-tools/README.md) | agents search with `rg` and `ast-grep` and read JSON with `toon` |
 | [agent-mail](plugins/agent-mail/README.md) | agents in one repository coordinate through Agent Mail: a thread, path reservations, and a prek hook that refuses commits of held paths |
 | [agents](plugins/agents/README.md) | skills `coder`, `reviewer` and `expert`: how each role works |
+| [cache-warm](plugins/cache-warm/README.md) | agents know how long their prompt cache lives and keep it warm while they wait |
 
 Each plugin's README says what the host needs and which environment variables it reads. The versions are in
 [CHANGELOG.md](CHANGELOG.md).
@@ -24,7 +25,7 @@ a tool fails and names the command.
 
 | Tool | Used by | Install |
 |---|---|---|
-| `jq` | conventional-commits, context-budget, shell-tools, agent-mail | `mise use -g jq` |
+| `jq` | conventional-commits, context-budget, shell-tools, agent-mail, cache-warm | `mise use -g jq` |
 | `dcg` | dcg | `mise use -g github:Dicklesworthstone/destructive_command_guard` |
 | `rg` | shell-tools | `mise use -g ripgrep` |
 | `ast-grep` | shell-tools | `mise use -g ast-grep` |

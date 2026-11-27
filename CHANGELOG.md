@@ -97,3 +97,11 @@ The repository is tagged `vMAJOR.MINOR.PATCH` for the hooks of its `.pre-commit-
 
 - Skills `coder`, `reviewer` and `expert` for Claude and Codex: how each role works, with the output format left to
   the caller.
+
+## cache-warm
+
+### 0.1.0
+
+- Tell each Claude or Codex session and subagent how long its prompt cache lives (`CACHE_WARM_TTL`) and to keep it
+  warm while it waits: no wait longer than the lifetime, long work in the background, and no checks past ten
+  lifetimes.

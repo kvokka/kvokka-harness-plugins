@@ -34,6 +34,11 @@
       "name": "agents",
       "source": "./plugins/agents",
       "description": "Skills for the roles of a coding loop: coder, reviewer and expert; each says how to work, the caller sets the output."
+    },
+    {
+      "name": "cache-warm",
+      "source": "./plugins/cache-warm",
+      "description": "Tells each agent and subagent how long its prompt cache lives and to keep it warm while it waits."
     }
   ]
 }

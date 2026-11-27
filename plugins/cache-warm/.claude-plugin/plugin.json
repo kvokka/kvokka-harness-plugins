@@ -1,0 +1,9 @@
+{
+  "name": "cache-warm",
+  "version": "0.1.0",
+  "description": "Tells each agent and subagent how long its prompt cache lives and to keep it warm while it waits.",
+  "author": {
+    "name": "kvokka"
+  },
+  "license": "MIT"
+}
